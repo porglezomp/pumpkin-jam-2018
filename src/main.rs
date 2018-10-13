@@ -33,7 +33,31 @@ impl MainState {
             },
         )?;
 
-        let players = vec![Player::new(ctx)?];
+        use crate::player::{Axis, Button, Controls};
+        let players = vec![
+            Player::new(
+                ctx,
+                Controls {
+                    lr: Axis::Buttons(
+                        Button::Keyboard(event::Keycode::Left),
+                        Button::Keyboard(event::Keycode::Right),
+                    ),
+                    jump: Button::Keyboard(event::Keycode::Up),
+                    shoot: Button::Keyboard(event::Keycode::Space),
+                },
+            )?,
+            Player::new(
+                ctx,
+                Controls {
+                    lr: Axis::Buttons(
+                        Button::Keyboard(event::Keycode::A),
+                        Button::Keyboard(event::Keycode::D),
+                    ),
+                    jump: Button::Keyboard(event::Keycode::W),
+                    shoot: Button::Keyboard(event::Keycode::Tab),
+                },
+            )?,
+        ];
         Ok(MainState { players })
     }
 

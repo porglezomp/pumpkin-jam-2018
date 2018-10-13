@@ -41,7 +41,7 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(ctx: &mut Context) -> GameResult<Self> {
+    pub fn new(ctx: &mut Context, controls: Controls) -> GameResult<Self> {
         let mesh = graphics::Mesh::new_polygon(
             ctx,
             graphics::DrawMode::Fill,
@@ -52,15 +52,6 @@ impl Player {
                 Point2::new(0.5, -2.0),
             ],
         )?;
-
-        let controls = Controls {
-            lr: Axis::Buttons(
-                Button::Keyboard(event::Keycode::Left),
-                Button::Keyboard(event::Keycode::Right),
-            ),
-            jump: Button::Keyboard(event::Keycode::Up),
-            shoot: Button::Keyboard(event::Keycode::Space),
-        };
 
         Ok(Player {
             mesh,
