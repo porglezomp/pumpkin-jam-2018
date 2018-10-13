@@ -135,6 +135,26 @@ impl ggez::event::EventHandler for MainState {
             // fixed update
             for player in &mut self.players {
                 player.fixed_update();
+
+                // if  !player.alive {
+                let mut indicies: Vec<_> = (0..self.grids.len()).collect();
+                rand::thread_rng().shuffle(&mut indicies);
+                for i in indicies {
+                    // Avoid spawning on the lowest grid if too damanged
+                    // (might be instant death!)
+                    if i == 0 && self.grids[0].percent_tiles_alive() < grid::NO_SPAWN_THRESHOLD {
+                        continue;
+                    }
+                    let result = player.respawn(&self.grids[i]);
+                    if result {
+                        break;
+                    }
+                }
+
+                if !player.alive {
+                    println!("cant find a spot");
+                }
+                // }
             }
 
             for bullet in &mut self.bullets {
@@ -159,7 +179,7 @@ impl ggez::event::EventHandler for MainState {
 
                     // When the bottom gird is offscreen, remove it
                     if let GridState::DeadFalling(goal_height) = self.grids[0].state {
-                        if (goal_height - self.grids[0].world_offset.1).abs() < 0.1 {
+                        if (goal_height - self.grids[0].height()).abs() < 0.1 {
                             self.grids.remove(0);
                         }
                     }
