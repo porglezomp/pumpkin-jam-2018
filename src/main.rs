@@ -3,7 +3,7 @@ use std::path;
 use ggez::{
     conf::{WindowMode, WindowSetup},
     event,
-    graphics::{self, Color, Point2, Rect},
+    graphics::{self, Point2, Rect},
     timer, Context, ContextBuilder, GameResult,
 };
 use rand::{thread_rng, Rng};
@@ -283,6 +283,13 @@ fn main() {
         })
         .build()
         .unwrap();
+
+    ctx.sdl_context
+        .game_controller()
+        .unwrap()
+        .load_mappings("./resources/gamecontrollerdb.txt")
+        .unwrap();
+    ctx.gamepad_context = ggez::input::GamepadContext::new(&ctx.sdl_context).unwrap();
 
     let state = &mut MainState::new(ctx).unwrap();
     if let Err(e) = ggez::event::run(ctx, state) {
