@@ -1,10 +1,28 @@
-use ggez::{graphics, timer, Context, GameResult};
 use std::path;
 
 struct MainState;
+use ggez::{
+    conf::{WindowMode, WindowSetup},
+    graphics::{self, Point2, Rect},
+    timer, Context, ContextBuilder, GameResult,
+};
+
+pub fn draw_pos(p: Point2) -> Point2 {
+    Point2::new(p.x, 24.0 - p.y)
+}
 
 impl MainState {
-    fn new(_ctx: &mut Context) -> GameResult<MainState> {
+    fn new(ctx: &mut Context) -> GameResult<Self> {
+        graphics::set_screen_coordinates(
+            ctx,
+            Rect {
+                x: 0.0,
+                y: 0.0,
+                h: 24.0,
+                w: 32.0,
+            },
+        )?;
+
         Ok(MainState)
     }
 }
@@ -30,13 +48,19 @@ impl ggez::event::EventHandler for MainState {
 }
 
 fn main() {
-    let c = ggez::conf::Conf::new();
-    let ctx = &mut Context::load_from_conf("fall", "acgames", c).unwrap();
-
-    let manifest_dir = env!("CARGO_MANIFEST_DIR");
-    let mut path = path::PathBuf::from(manifest_dir);
-    path.push("resources");
-    ctx.filesystem.mount(&path, true);
+    let ctx = &mut ContextBuilder::new("fall", "acgames")
+        .add_resource_path(path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("resources"))
+        .window_setup(WindowSetup {
+            title: "Fall".into(),
+            ..Default::default()
+        })
+        .window_mode(WindowMode {
+            width: 960,
+            height: 720,
+            ..Default::default()
+        })
+        .build()
+        .unwrap();
 
     let state = &mut MainState::new(ctx).unwrap();
     if let Err(e) = ggez::event::run(ctx, state) {
