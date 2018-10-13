@@ -136,25 +136,26 @@ impl ggez::event::EventHandler for MainState {
             for player in &mut self.players {
                 player.fixed_update();
 
-                // if  !player.alive {
-                let mut indicies: Vec<_> = (0..self.grids.len()).collect();
-                rand::thread_rng().shuffle(&mut indicies);
-                for i in indicies {
-                    // Avoid spawning on the lowest grid if too damanged
-                    // (might be instant death!)
-                    if i == 0 && self.grids[0].percent_tiles_alive() < grid::NO_SPAWN_THRESHOLD {
-                        continue;
-                    }
-                    let result = player.respawn(&self.grids[i]);
-                    if result {
-                        break;
-                    }
-                }
-
                 if !player.alive {
-                    println!("cant find a spot");
+                    let mut indicies: Vec<_> = (0..self.grids.len()).collect();
+                    rand::thread_rng().shuffle(&mut indicies);
+                    for i in indicies {
+                        // Avoid spawning on the lowest grid if too damanged
+                        // (might be instant death!)
+                        if i == 0 && self.grids[0].percent_tiles_alive() < grid::NO_SPAWN_THRESHOLD
+                        {
+                            continue;
+                        }
+                        let result = player.respawn(&self.grids[i]);
+                        if result {
+                            break;
+                        }
+                    }
+
+                    if !player.alive {
+                        println!("cant find a spot");
+                    }
                 }
-                // }
             }
 
             for bullet in &mut self.bullets {
