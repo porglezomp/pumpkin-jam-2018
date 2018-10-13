@@ -10,12 +10,38 @@ use rand::{thread_rng, Rng};
 
 use crate::bullet::Bullet;
 use crate::grid::{Grid, GridState, Module};
-use crate::player::{Player, Team};
+use crate::player::{Axis, Button, Controls, Player, Team};
 
 mod bullet;
 mod draw;
 mod grid;
 mod player;
+
+fn joycon_controls(id: i32) -> Controls {
+    Controls {
+        lr: Axis::Analog(id, event::Axis::LeftX),
+        jump: Button::Controller(id, event::Button::A),
+        shoot: Button::Controller(id, event::Button::B),
+    }
+}
+
+const _WASD_CONTROLS: Controls = Controls {
+    lr: Axis::Buttons(
+        Button::Keyboard(event::Keycode::A),
+        Button::Keyboard(event::Keycode::D),
+    ),
+    jump: Button::Keyboard(event::Keycode::W),
+    shoot: Button::Keyboard(event::Keycode::Tab),
+};
+
+const _ARROW_CONTROLS: Controls = Controls {
+    lr: Axis::Buttons(
+        Button::Keyboard(event::Keycode::Left),
+        Button::Keyboard(event::Keycode::Right),
+    ),
+    jump: Button::Keyboard(event::Keycode::Up),
+    shoot: Button::Keyboard(event::Keycode::Comma),
+};
 
 const MODULES_PATH: &str = "./resources/modules.txt";
 const LEAVES_PATH: &str = "/leaves.png";
@@ -33,32 +59,9 @@ struct MainState {
 
 impl MainState {
     fn new(ctx: &mut Context) -> GameResult<MainState> {
-        use crate::player::{Axis, Button, Controls};
         let players = vec![
-            Player::new(
-                ctx,
-                Team(0),
-                Controls {
-                    lr: Axis::Buttons(
-                        Button::Keyboard(event::Keycode::Left),
-                        Button::Keyboard(event::Keycode::Right),
-                    ),
-                    jump: Button::Keyboard(event::Keycode::Up),
-                    shoot: Button::Keyboard(event::Keycode::Space),
-                },
-            )?,
-            Player::new(
-                ctx,
-                Team(1),
-                Controls {
-                    lr: Axis::Buttons(
-                        Button::Keyboard(event::Keycode::A),
-                        Button::Keyboard(event::Keycode::D),
-                    ),
-                    jump: Button::Keyboard(event::Keycode::W),
-                    shoot: Button::Keyboard(event::Keycode::Tab),
-                },
-            )?,
+            Player::new(ctx, Team(0), joycon_controls(0))?,
+            Player::new(ctx, Team(1), joycon_controls(1))?,
         ];
 
         let modules = grid::parse_modules_file(&path::Path::new(MODULES_PATH)).unwrap();
