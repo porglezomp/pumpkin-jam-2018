@@ -6,6 +6,8 @@ use ggez::{
 
 use crate::bullet::Bullet;
 
+use crate::draw;
+
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct Team(pub u8);
 
@@ -56,10 +58,10 @@ impl Player {
             ctx,
             graphics::DrawMode::Fill,
             &[
-                Point2::new(-0.5, -2.0),
+                Point2::new(-0.5, 2.0),
                 Point2::new(-0.5, 0.0),
                 Point2::new(0.5, 0.0),
-                Point2::new(0.5, -2.0),
+                Point2::new(0.5, 2.0),
             ],
         )?;
 
@@ -116,6 +118,8 @@ impl Player {
         }
 
         self.acc.x += self.control_state.lr / crate::DT;
+
+        println!("player: {:?}", self.pos);
     }
 
     pub fn fixed_update(&mut self) {
@@ -146,7 +150,7 @@ impl Player {
                 a: 1.0,
             },
         )?;
-        self.mesh.draw(ctx, crate::draw_pos(self.pos), 0.0)?;
+        draw::draw(ctx, &self.mesh, self.pos, 0.0)?;
         Ok(())
     }
 

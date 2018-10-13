@@ -3,7 +3,7 @@ use std::path;
 use ggez::{
     conf::{WindowMode, WindowSetup},
     event,
-    graphics::{self, Color, Point2, Rect},
+    graphics::{self, Color, DrawParam, Image, Point2, Rect},
     timer, Context, ContextBuilder, GameResult,
 };
 use rand::{thread_rng, Rng};
@@ -13,10 +13,12 @@ use crate::grid::{Grid, GridState, Module};
 use crate::player::{Player, Team};
 
 mod bullet;
+mod draw;
 mod grid;
 mod player;
 
 const MODULES_PATH: &str = "./resources/modules.txt";
+const LEAVES_PATH: &str = "/leaves.png";
 const DT: f32 = 1.0 / 60.0;
 
 struct MainState {
@@ -25,20 +27,11 @@ struct MainState {
     modules: Vec<Module>,
     players: Vec<Player>,
     bullets: Vec<Bullet>,
+    leaves_image: Image,
 }
 
 impl MainState {
     fn new(ctx: &mut Context) -> GameResult<MainState> {
-        graphics::set_screen_coordinates(
-            ctx,
-            Rect {
-                x: 0.0,
-                y: 0.0,
-                h: 24.0,
-                w: 32.0,
-            },
-        )?;
-
         use crate::player::{Axis, Button, Controls};
         let players = vec![
             Player::new(
@@ -69,19 +62,22 @@ impl MainState {
 
         let modules = grid::parse_modules_file(&path::Path::new(MODULES_PATH)).unwrap();
         let grids = vec![
-            Grid::new_from_module((grid::GRID_HEIGHT * 0) as f32, modules[1].clone()),
-            Grid::new_from_module((grid::GRID_HEIGHT * 1) as f32, modules[0].clone()),
+            Grid::new_from_module((grid::GRID_HEIGHT * 0) as f32, modules[2].clone()),
+            Grid::new_from_module((grid::GRID_HEIGHT * 1) as f32, modules[2].clone()),
             Grid::new_from_module(
                 (grid::GRID_HEIGHT * 2) as f32,
                 rand::thread_rng().choose(&modules).unwrap().clone(),
             ),
         ];
 
+        let leaves_image = Image::new(ctx, path::Path::new(LEAVES_PATH))?;
+
         Ok(MainState {
             grids,
             modules,
             players,
             bullets: Vec::with_capacity(20),
+            leaves_image,
         })
     }
 
@@ -145,26 +141,26 @@ impl ggez::event::EventHandler for MainState {
                 thread_rng().gen_range(0, grid::GRID_WIDTH),
                 thread_rng().gen_range(0, grid::GRID_HEIGHT),
             );
-            // self.grids[0].damage_tile(
-            //     thread_rng().gen_range(0, grid::GRID_WIDTH),
-            //     thread_rng().gen_range(0, grid::GRID_HEIGHT),
-            // );
-            // self.grids[0].damage_tile(
-            //     thread_rng().gen_range(0, grid::GRID_WIDTH),
-            //     thread_rng().gen_range(0, grid::GRID_HEIGHT),
-            // );
+            self.grids[0].damage_tile(
+                thread_rng().gen_range(0, grid::GRID_WIDTH),
+                thread_rng().gen_range(0, grid::GRID_HEIGHT),
+            );
+            self.grids[0].damage_tile(
+                thread_rng().gen_range(0, grid::GRID_WIDTH),
+                thread_rng().gen_range(0, grid::GRID_HEIGHT),
+            );
+            //  self.grids[1].damage_tile(
+            //      thread_rng().gen_range(0, grid::GRID_WIDTH),
+            //      thread_rng().gen_range(0, grid::GRID_HEIGHT),
+            //  );
             // self.grids[1].damage_tile(
             //     thread_rng().gen_range(0, grid::GRID_WIDTH),
             //     thread_rng().gen_range(0, grid::GRID_HEIGHT),
             // );
-            self.grids[1].damage_tile(
-                thread_rng().gen_range(0, grid::GRID_WIDTH),
-                thread_rng().gen_range(0, grid::GRID_HEIGHT),
-            );
-            self.grids[2].damage_tile(
-                thread_rng().gen_range(0, grid::GRID_WIDTH),
-                thread_rng().gen_range(0, grid::GRID_HEIGHT),
-            );
+            // self.grids[2].damage_tile(
+            //     thread_rng().gen_range(0, grid::GRID_WIDTH),
+            //     thread_rng().gen_range(0, grid::GRID_HEIGHT),
+            // );
         }
 
         // If the bottom grid is dead, remove it, add a new grid, and make the other
@@ -187,7 +183,7 @@ impl ggez::event::EventHandler for MainState {
         graphics::clear(ctx);
 
         for grid in &mut self.grids {
-            grid.draw(ctx)?;
+            grid.draw(ctx, self.leaves_image.clone())?;
         }
 
         for player in &self.players {
@@ -258,8 +254,8 @@ fn main() {
             ..Default::default()
         })
         .window_mode(WindowMode {
-            width: 960,
-            height: 720,
+            width: draw::SCREEN_WIDTH as u32,
+            height: draw::SCREEN_HEIGHT as u32,
             ..Default::default()
         })
         .build()
