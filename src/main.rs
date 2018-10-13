@@ -3,7 +3,7 @@ use std::path;
 use ggez::{
     conf::{WindowMode, WindowSetup},
     event,
-    graphics::{self, Color, DrawParam, Image, Point2, Rect},
+    graphics::{self, Image, Point2},
     timer, Context, ContextBuilder, GameResult,
 };
 use rand::{thread_rng, Rng};
@@ -22,6 +22,7 @@ const LEAVES_PATH: &str = "/leaves.png";
 const DT: f32 = 1.0 / 60.0;
 
 struct MainState {
+    focused: bool,
     // Grids are stored from lowest visually to highest
     grids: Vec<Grid>,
     modules: Vec<Module>,
@@ -73,6 +74,7 @@ impl MainState {
         let leaves_image = Image::new(ctx, path::Path::new(LEAVES_PATH))?;
 
         Ok(MainState {
+            focused: true,
             grids,
             modules,
             players,
@@ -117,6 +119,13 @@ pub fn draw_pos(p: Point2) -> Point2 {
 impl ggez::event::EventHandler for MainState {
     fn update(&mut self, ctx: &mut Context) -> GameResult<()> {
         const DESIRED_FPS: u32 = 60;
+
+        if !self.focused {
+            while timer::check_update_time(ctx, DESIRED_FPS) {}
+            timer::sleep(std::time::Duration::from_millis(10));
+            timer::yield_now();
+            return Ok(());
+        }
 
         for player in &mut self.players {
             player.update(&mut self.bullets);
@@ -172,24 +181,17 @@ impl ggez::event::EventHandler for MainState {
                 thread_rng().gen_range(0, grid::GRID_WIDTH),
                 thread_rng().gen_range(0, grid::GRID_HEIGHT),
             );
-            //  self.grids[1].damage_tile(
-            //      thread_rng().gen_range(0, grid::GRID_WIDTH),
-            //      thread_rng().gen_range(0, grid::GRID_HEIGHT),
-            //  );
-            // self.grids[1].damage_tile(
-            //     thread_rng().gen_range(0, grid::GRID_WIDTH),
-            //     thread_rng().gen_range(0, grid::GRID_HEIGHT),
-            // );
-            // self.grids[2].damage_tile(
-            //     thread_rng().gen_range(0, grid::GRID_WIDTH),
-            //     thread_rng().gen_range(0, grid::GRID_HEIGHT),
-            // );
         }
 
+        timer::yield_now();
         Ok(())
     }
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
+        if !self.focused {
+            return Ok(());
+        }
+
         graphics::clear(ctx);
 
         for grid in &mut self.grids {
@@ -254,6 +256,10 @@ impl ggez::event::EventHandler for MainState {
     ) {
         self.axis(axis, instance_id, value as f32 / std::i16::MAX as f32)
     }
+
+    fn focus_event(&mut self, _ctx: &mut Context, gained: bool) {
+        self.focused = gained;
+    }
 }
 
 fn main() {
@@ -270,6 +276,13 @@ fn main() {
         })
         .build()
         .unwrap();
+
+    ctx.sdl_context
+        .game_controller()
+        .unwrap()
+        .load_mappings("./resources/gamecontrollerdb.txt")
+        .unwrap();
+    ctx.gamepad_context = ggez::input::GamepadContext::new(&ctx.sdl_context).unwrap();
 
     let state = &mut MainState::new(ctx).unwrap();
     if let Err(e) = ggez::event::run(ctx, state) {

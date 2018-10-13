@@ -1,6 +1,6 @@
 use ggez::{
     event,
-    graphics::{self, Color, Drawable, Point2, Rect, Vector2},
+    graphics::{self, Color, Point2, Rect, Vector2},
     Context, GameResult,
 };
 

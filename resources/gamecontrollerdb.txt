@@ -1,0 +1,2 @@
+030000007e0500000620000001000000,Joy-Con (L),platform:Mac OS X,+leftx:h0.2,+lefty:h0.4,-leftx:h0.8,-lefty:h0.1,a:b0,b:b1,leftshoulder:b4,leftstick:b10,rightshoulder:b5,start:b8,x:b2,y:b3,platform:Mac OS X,
+030000007e0500000720000001000000,Joy-Con (R),platform:Mac OS X,a:b0,b:b1,x:b2,y:b3,back:b12,start:b9,leftstick:h0.12,rightstick:b11,leftshoulder:b4,rightshoulder:b5,-leftx:h0.8,+leftx:h0.2,-lefty:h0.1,+lefty:h0.4,

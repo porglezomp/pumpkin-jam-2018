@@ -2,7 +2,7 @@ use std::fs;
 use std::path;
 
 use ggez::{
-    graphics::{self, spritebatch::SpriteBatch, Color, DrawParam, Image, Point2, Rect},
+    graphics::{spritebatch::SpriteBatch, Color, DrawParam, Image, Point2},
     Context, GameResult,
 };
 
@@ -29,10 +29,6 @@ pub struct Grid {
 }
 
 impl Grid {
-    pub fn new(height: WorldCoord) -> Grid {
-        Grid::new_from_module(height, [[Tile::Solid(5); GRID_WIDTH]; GRID_HEIGHT])
-    }
-
     pub fn new_from_module(height: WorldCoord, module: Module) -> Grid {
         let total_tiles = total_tiles(module);
         Grid {
