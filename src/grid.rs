@@ -2,9 +2,11 @@ use std::fs;
 use std::path;
 
 use ggez::{
-    graphics::{spritebatch::SpriteBatch, Color, DrawParam, Image, Point2},
+    graphics::{spritebatch::SpriteBatch, Color, DrawParam, Image, Point2, Vector2},
     Context, GameResult,
 };
+use rand;
+use rand::Rng;
 
 use crate::draw;
 use crate::draw::WorldCoord;
@@ -17,12 +19,12 @@ pub const GRID_HEIGHT: GridCoord = 8;
 pub const TILE_SIZE: WorldCoord = 1.0f32;
 pub const TILE_MAX_HEALTH: usize = 5;
 
-pub const DEATH_THRESHOLD: f32 = 0.95;
-
+pub const DEATH_THRESHOLD: f32 = 0.25;
+pub const NO_SPAWN_THRESHOLD: f32 = 0.5;
 /// A grid contains the collidable tiles that our dynamic objects interact with
 pub struct Grid {
-    module: Module, // Stored such that row zero is the bottom row
-    pub world_offset: (WorldCoord, WorldCoord), // lower left corner
+    pub module: Module,       // Stored such that row zero is the bottom row
+    pub world_offset: Point2, // lower left corner
     pub state: GridState,
     total_tiles: usize, // Number of tiles alive at the start
     tiles_alive: usize, // Number of tiles still currently alive
@@ -33,7 +35,7 @@ impl Grid {
         let total_tiles = total_tiles(module);
         Grid {
             module: module,
-            world_offset: (0.0, height),
+            world_offset: Point2::new(0.0, height),
             state: GridState::Alive,
             total_tiles: total_tiles,
             tiles_alive: total_tiles,
@@ -41,7 +43,7 @@ impl Grid {
     }
 
     pub fn height(&self) -> f32 {
-        self.world_offset.1
+        self.world_offset.y
     }
 
     pub fn update(&mut self, grid_below: Option<&Grid>) {
@@ -64,9 +66,9 @@ impl Grid {
 
         match self.state {
             AliveFalling(goal_height) | DeadFalling(goal_height) => {
-                self.world_offset.1 -= 0.5;
-                if (goal_height - self.world_offset.1).abs() < 0.1 {
-                    self.world_offset.1 = goal_height;
+                self.world_offset.y -= 0.5;
+                if (goal_height - self.world_offset.y).abs() < 0.1 {
+                    self.world_offset.y = goal_height;
                     self.state = GridState::Alive;
                 }
             }
@@ -102,7 +104,7 @@ impl Grid {
             }
         }
         let param = DrawParam {
-            dest: Point2::new(self.world_offset.0, self.world_offset.1),
+            dest: self.world_offset,
             ..Default::default()
         };
         draw::draw_ex(ctx, &sprite_batch, param)?;
@@ -120,14 +122,23 @@ impl Grid {
                 *health -= 1;
                 if *health == 0 {
                     self.tiles_alive -= 1;
+                    self.module[y][x] = Tile::Air;
                 }
             }
             Air => return,
         }
     }
 
-    fn percent_tiles_alive(&self) -> f32 {
+    pub fn percent_tiles_alive(&self) -> f32 {
         self.tiles_alive as f32 / self.total_tiles as f32
+    }
+
+    pub fn to_world_coords(&self, grid_coords: (GridCoord, GridCoord)) -> Point2 {
+        const SCALING_FACTOR: f32 = TILE_SIZE as f32 * draw::WORLD_WIDTH / GRID_WIDTH as f32;
+        self.world_offset + Vector2::new(
+            SCALING_FACTOR * grid_coords.1 as f32,
+            SCALING_FACTOR * grid_coords.0 as f32,
+        )
     }
 }
 
@@ -137,6 +148,26 @@ pub enum GridState {
     AliveFalling(WorldCoord), // Stores the target height to get to
     DeadFalling(WorldCoord),  // Stores the target height to get to
     Dead,
+}
+
+pub fn find_spawn_location(module: Module) -> Option<(GridCoord, GridCoord)> {
+    let mut columns: Vec<usize> = (0..GRID_WIDTH).collect();
+    rand::thread_rng().shuffle(&mut columns);
+    for col in columns {
+        for row in 0..(GRID_HEIGHT - 2) {
+            let ground_tile = if let Tile::Solid(_) = module[row][col] {
+                true
+            } else {
+                false
+            };
+            let tile_above = module[row + 1][col] == Tile::Air;
+            let tile_two_above = module[row + 2][col] == Tile::Air;
+            if ground_tile && tile_above && tile_two_above {
+                return Some((row, col));
+            }
+        }
+    }
+    None
 }
 
 fn total_tiles(module: Module) -> usize {
@@ -192,7 +223,7 @@ fn text_to_row(row: &str) -> Result<[Tile; GRID_WIDTH], String> {
     Ok(tiles)
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Eq, PartialEq)]
 pub enum Tile {
     Air,
     Solid(usize),

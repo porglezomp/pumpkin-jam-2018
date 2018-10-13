@@ -7,6 +7,9 @@ use ggez::{
 use crate::bullet::Bullet;
 
 use crate::draw;
+use crate::grid;
+
+pub const PLAYER_MAX_HEALTH: u8 = 3;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct Team(pub u8);
@@ -50,6 +53,7 @@ pub struct Player {
     acc: Vector2,
     pub health: u8,
     pub cooldown: f32,
+    pub alive: bool,
 }
 
 impl Player {
@@ -73,8 +77,9 @@ impl Player {
             pos: Point2::new(0.0, 0.0),
             vel: Vector2::new(0.0, 0.0),
             acc: Vector2::new(0.0, 0.0),
-            health: 3,
+            health: PLAYER_MAX_HEALTH,
             cooldown: 0.0,
+            alive: false,
         })
     }
 
@@ -89,8 +94,27 @@ impl Player {
             }
         }
     }
+    /// Respawn the player in a grid, picked at random. Returns true if it succesfuly
+    /// respawns the player, and false if it cannot find a place to spawn
+    #[must_use]
+    pub fn respawn(&mut self, grid: &grid::Grid) -> bool {
+        let grid_coords = grid::find_spawn_location(grid.module);
+        if grid_coords == None {
+            return false;
+        }
+        // make the player spawns on top of the center of the block
+        let offset = Vector2::new(grid::TILE_SIZE as f32 / 2.0, grid::TILE_SIZE as f32);
+        self.pos = grid.to_world_coords(grid_coords.unwrap()) + offset;
+        self.alive = true;
+        self.health = PLAYER_MAX_HEALTH;
+        true
+    }
 
     pub fn update(&mut self, bullets: &mut Vec<Bullet>) {
+        if !self.alive {
+            return;
+        }
+
         self.controls();
 
         let grounded = self.pos.y <= 0.0;
@@ -118,9 +142,17 @@ impl Player {
         }
 
         self.acc.x += self.control_state.lr / crate::DT;
+
+        if self.health == 0 {
+            self.alive = false;
+        }
     }
 
     pub fn fixed_update(&mut self) {
+        if !self.alive {
+            return;
+        }
+
         self.cooldown = 0.0f32.max(self.cooldown - crate::DT);
         self.vel += crate::DT * self.acc;
         self.vel.x *= 0.95;
@@ -139,6 +171,9 @@ impl Player {
     }
 
     pub fn draw(&self, ctx: &mut Context) -> GameResult<()> {
+        if !self.alive {
+            return Ok(());
+        }
         graphics::set_color(
             ctx,
             Color {
