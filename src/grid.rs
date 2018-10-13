@@ -4,14 +4,13 @@ use std::{
 };
 
 use ggez::{
-    graphics::{spritebatch::SpriteBatch, Color, DrawParam, Image, Point2, Vector2},
+    graphics::{Color, DrawParam, Image, Point2, Vector2},
     Context, GameResult,
 };
 use rand;
 use rand::Rng;
 
-use crate::draw;
-use crate::draw::WorldCoord;
+use crate::draw::{self, Batch, WorldCoord};
 
 pub type GridCoord = usize;
 pub type Module = [[Tile; GRID_WIDTH]; GRID_HEIGHT];
@@ -80,7 +79,7 @@ impl Grid {
 
     pub fn draw(&mut self, ctx: &mut Context, image: Image) -> GameResult<()> {
         use self::Tile::*;
-        let mut sprite_batch = SpriteBatch::new(image);
+        let mut batch = Batch::new(image);
         for (j, row) in self.module.iter().enumerate() {
             for (i, tile) in row.iter().enumerate() {
                 match *tile {
@@ -90,17 +89,15 @@ impl Grid {
                         if health == 0 {
                             continue;
                         }
-                        let draw_param = DrawParam {
+                        batch.add(DrawParam {
                             dest: Point2::new(TILE_SIZE * i as f32, TILE_SIZE * j as f32),
                             color: Some(color_lerp(
                                 RED,
                                 WHITE,
                                 (health - 1) as f32 / (TILE_MAX_HEALTH - 1) as f32,
                             )),
-                            scale: Point2::new(1.0 / 32.0, 1.0 / 32.0),
                             ..Default::default()
-                        };
-                        sprite_batch.add(draw_param);
+                        });
                     }
                 }
             }
@@ -109,7 +106,7 @@ impl Grid {
             dest: self.world_offset,
             ..Default::default()
         };
-        draw::draw_ex(ctx, &sprite_batch, param)?;
+        batch.draw(ctx, param)?;
         Ok(())
     }
 

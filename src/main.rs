@@ -1,7 +1,7 @@
 use std::path;
 
 use ggez::{
-    conf::{WindowMode, WindowSetup},
+    conf::{FullscreenType, WindowMode, WindowSetup},
     event,
     graphics::{self, Point2},
     timer, Context, ContextBuilder, GameResult,
@@ -222,10 +222,6 @@ impl ggez::event::EventHandler for MainState {
 
         graphics::clear(ctx);
 
-        if self.in_menu {
-            draw::draw(ctx, &self.images.join, Point2::new(1.0, 1.0), 0.0)?;
-        }
-
         for grid in &mut self.grids {
             grid.draw(ctx, self.images.leaves.clone())?;
         }
@@ -237,6 +233,11 @@ impl ggez::event::EventHandler for MainState {
         for bullet in &self.bullets {
             bullet.draw(ctx)?;
         }
+
+        if self.in_menu {
+            draw::draw_sprite(ctx, &self.images.join, Point2::new(1.0, 1.0))?;
+        }
+
         graphics::present(ctx);
         Ok(())
     }
