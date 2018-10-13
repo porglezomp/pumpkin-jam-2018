@@ -1,8 +1,9 @@
 use ggez::{
-    graphics::{self, Point2, Rect, Vector2},
+    graphics::{self, DrawMode, Point2, Rect, Vector2},
     Context, GameResult,
 };
 
+use crate::draw;
 use crate::player::{Player, Team};
 
 const BULLET_WIDTH: f32 = 0.2;
@@ -51,16 +52,13 @@ impl Bullet {
     }
 
     pub fn draw(&self, ctx: &mut Context) -> GameResult<()> {
-        let rect = self.rect();
-
-        graphics::rectangle(
-            ctx,
-            graphics::DrawMode::Fill,
-            Rect {
-                y: 24.0 - rect.y,
-                ..rect
-            },
-        )?;
-        Ok(())
+        let points = [
+            Point2::new(-BULLET_WIDTH / 2.0, -BULLET_HEIGHT / 2.0),
+            Point2::new(-BULLET_WIDTH / 2.0, BULLET_HEIGHT / 2.0),
+            Point2::new(BULLET_WIDTH / 2.0, BULLET_HEIGHT / 2.0),
+            Point2::new(BULLET_WIDTH / 2.0, -BULLET_HEIGHT / 2.0),
+        ];
+        let mesh = graphics::Mesh::new_polygon(ctx, DrawMode::Fill, &points)?;
+        draw::draw(ctx, &mesh, self.pos, 0.0)
     }
 }

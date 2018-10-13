@@ -2,35 +2,33 @@ use std::fs;
 use std::path;
 
 use ggez::{
-    graphics::{self, Color, Rect},
+    graphics::{spritebatch::SpriteBatch, Color, DrawParam, Image, Point2},
     Context, GameResult,
 };
 
+use crate::draw;
+use crate::draw::WorldCoord;
+
 pub type GridCoord = usize;
-pub type WorldCoord = f32;
 pub type Module = [[Tile; GRID_WIDTH]; GRID_HEIGHT];
 
-pub const WORLD_WIDTH: WorldCoord = GRID_WIDTH as f32;
-pub const WORLD_HEIGHT: WorldCoord = (GRID_HEIGHT * 3) as f32;
 pub const GRID_WIDTH: GridCoord = 32;
 pub const GRID_HEIGHT: GridCoord = 8;
 pub const TILE_SIZE: WorldCoord = 1.0f32;
 pub const TILE_MAX_HEALTH: usize = 5;
 
+pub const DEATH_THRESHOLD: f32 = 0.95;
+
 /// A grid contains the collidable tiles that our dynamic objects interact with
 pub struct Grid {
-    module: Module,
-    world_offset: (WorldCoord, WorldCoord),
+    module: Module, // Stored such that row zero is the bottom row
+    pub world_offset: (WorldCoord, WorldCoord), // lower left corner
     pub state: GridState,
     total_tiles: usize, // Number of tiles alive at the start
     tiles_alive: usize, // Number of tiles still currently alive
 }
 
 impl Grid {
-    pub fn new(height: WorldCoord) -> Grid {
-        Grid::new_from_module(height, [[Tile::Solid(5); GRID_WIDTH]; GRID_HEIGHT])
-    }
-
     pub fn new_from_module(height: WorldCoord, module: Module) -> Grid {
         let total_tiles = total_tiles(module);
         Grid {
@@ -42,19 +40,43 @@ impl Grid {
         }
     }
 
-    pub fn update(&mut self) {
-        if self.percent_tiles_alive() < 0.15 {
-            self.state = GridState::Dead;
+    pub fn height(&self) -> f32 {
+        self.world_offset.1
+    }
+
+    pub fn update(&mut self, grid_below: Option<&Grid>) {
+        use self::GridState::*;
+
+        if self.percent_tiles_alive() < DEATH_THRESHOLD && self.state == Alive {
+            self.state = Dead;
+        }
+        const GRID_HEIGHT_F32: f32 = TILE_SIZE * GRID_HEIGHT as f32;
+        if let Some(grid_below) = grid_below {
+            match (&self.state, &grid_below.state) {
+                (Alive, AliveFalling(goal_height)) | (Alive, DeadFalling(goal_height)) => {
+                    if self.height() - grid_below.height() > 2.0 * TILE_SIZE + GRID_HEIGHT_F32 {
+                        self.state = AliveFalling(goal_height + GRID_HEIGHT_F32);
+                    }
+                }
+                _ => (),
+            }
         }
 
-        if let GridState::Falling(goal_height) = self.state {
-            self.world_offset.1 = goal_height;
-            self.state = GridState::Alive;
+        match self.state {
+            AliveFalling(goal_height) | DeadFalling(goal_height) => {
+                self.world_offset.1 -= 0.5;
+                if (goal_height - self.world_offset.1).abs() < 0.1 {
+                    self.world_offset.1 = goal_height;
+                    self.state = GridState::Alive;
+                }
+            }
+            _ => (),
         }
     }
 
-    pub fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
+    pub fn draw(&mut self, ctx: &mut Context, image: Image) -> GameResult<()> {
         use self::Tile::*;
+        let mut sprite_batch = SpriteBatch::new(image);
         for (j, row) in self.module.iter().enumerate() {
             for (i, tile) in row.iter().enumerate() {
                 match *tile {
@@ -64,29 +86,26 @@ impl Grid {
                         if health == 0 {
                             continue;
                         }
-
-                        let x_pos = self.world_offset.0 + TILE_SIZE * i as f32;
-                        // TODO: the j + 1 is a kludge and only exists because rectangles are drawn downwards. This problem
-                        // should go away once we change screen coordinates to be sensible (aka: y goes upwards)
-                        let y_pos =
-                            WORLD_HEIGHT - (self.world_offset.1 + TILE_SIZE * (j + 1) as f32);
-                        let rect = Rect {
-                            x: x_pos,
-                            y: y_pos,
-                            w: TILE_SIZE,
-                            h: TILE_SIZE,
+                        let draw_param = DrawParam {
+                            dest: Point2::new(TILE_SIZE * i as f32, TILE_SIZE * j as f32),
+                            color: Some(color_lerp(
+                                RED,
+                                WHITE,
+                                (health - 1) as f32 / (TILE_MAX_HEALTH - 1) as f32,
+                            )),
+                            scale: Point2::new(1.0 / 32.0, 1.0 / 32.0),
+                            ..Default::default()
                         };
-                        let color = color_lerp(
-                            RED,
-                            WHITE,
-                            (health - 1) as f32 / (TILE_MAX_HEALTH - 1) as f32,
-                        );
-                        graphics::set_color(ctx, color)?;
-                        graphics::rectangle(ctx, graphics::DrawMode::Fill, rect)?;
+                        sprite_batch.add(draw_param);
                     }
                 }
             }
         }
+        let param = DrawParam {
+            dest: Point2::new(self.world_offset.0, self.world_offset.1),
+            ..Default::default()
+        };
+        draw::draw_ex(ctx, &sprite_batch, param)?;
         Ok(())
     }
 
@@ -115,7 +134,8 @@ impl Grid {
 #[derive(PartialEq)]
 pub enum GridState {
     Alive,
-    Falling(WorldCoord), // Stores the target height to get to
+    AliveFalling(WorldCoord), // Stores the target height to get to
+    DeadFalling(WorldCoord),  // Stores the target height to get to
     Dead,
 }
 
@@ -147,7 +167,6 @@ pub fn parse_modules_file(path: &path::Path) -> Result<Vec<Module>, String> {
         assert_eq!(module[8].trim(), "-");
         let mut grid = [[Tile::Air; GRID_WIDTH]; GRID_HEIGHT];
         for (i, row) in module[..8].iter().enumerate() {
-            println!("{:?}", row);
             grid[7 - i] = text_to_row(row)
                 .map_err(|err| format!("Could not parse {} (line: {}) Reason: {}", row, i, err))?;
         }
@@ -191,20 +210,6 @@ pub const RED: Color = Color {
     g: 0.0,
     b: 0.0,
     a: 1.0,
-};
-
-pub const GREEN: Color = Color {
-    r: 0.0,
-    g: 1.0,
-    b: 0.0,
-    a: 1.0,
-};
-
-pub const TRANSPARENT: Color = Color {
-    r: 0.0,
-    g: 0.0,
-    b: 0.0,
-    a: 0.0,
 };
 
 // todo : make this not stupid
