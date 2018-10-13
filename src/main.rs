@@ -3,30 +3,32 @@ use std::path;
 use ggez::{
     conf::{WindowMode, WindowSetup},
     event,
-    graphics::{self, Point2, Rect},
+    graphics::{self, Color, Point2, Rect},
     timer, Context, ContextBuilder, GameResult,
 };
+use rand::{thread_rng, Rng};
 
 use crate::bullet::Bullet;
+use crate::grid::{Grid, GridState, Module};
 use crate::player::{Player, Team};
 
 mod bullet;
+mod grid;
 mod player;
 
+const MODULES_PATH: &str = "./resources/modules.txt";
 const DT: f32 = 1.0 / 60.0;
 
-#[derive(Debug)]
 struct MainState {
+    // Grids are stored from lowest visually to highest
+    grids: Vec<Grid>,
+    modules: Vec<Module>,
     players: Vec<Player>,
     bullets: Vec<Bullet>,
 }
 
-pub fn draw_pos(p: Point2) -> Point2 {
-    Point2::new(p.x, 24.0 - p.y)
-}
-
 impl MainState {
-    fn new(ctx: &mut Context) -> GameResult<Self> {
+    fn new(ctx: &mut Context) -> GameResult<MainState> {
         graphics::set_screen_coordinates(
             ctx,
             Rect {
@@ -64,7 +66,20 @@ impl MainState {
                 },
             )?,
         ];
+
+        let modules = grid::parse_modules_file(&path::Path::new(MODULES_PATH)).unwrap();
+        let grids = vec![
+            Grid::new_from_module((grid::GRID_HEIGHT * 0) as f32, modules[1].clone()),
+            Grid::new_from_module((grid::GRID_HEIGHT * 1) as f32, modules[0].clone()),
+            Grid::new_from_module(
+                (grid::GRID_HEIGHT * 2) as f32,
+                rand::thread_rng().choose(&modules).unwrap().clone(),
+            ),
+        ];
+
         Ok(MainState {
+            grids,
+            modules,
             players,
             bullets: Vec::with_capacity(20),
         })
@@ -99,6 +114,10 @@ impl MainState {
     }
 }
 
+pub fn draw_pos(p: Point2) -> Point2 {
+    Point2::new(p.x, 24.0 - p.y)
+}
+
 impl ggez::event::EventHandler for MainState {
     fn update(&mut self, ctx: &mut Context) -> GameResult<()> {
         const DESIRED_FPS: u32 = 60;
@@ -108,6 +127,7 @@ impl ggez::event::EventHandler for MainState {
         }
 
         while timer::check_update_time(ctx, DESIRED_FPS) {
+            // fixed update
             for player in &mut self.players {
                 player.fixed_update();
             }
@@ -117,12 +137,58 @@ impl ggez::event::EventHandler for MainState {
             }
 
             self.bullets.retain(|bullet| bullet.is_alive);
+
+            for grid in &mut self.grids {
+                grid.update();
+            }
+            self.grids[0].damage_tile(
+                thread_rng().gen_range(0, grid::GRID_WIDTH),
+                thread_rng().gen_range(0, grid::GRID_HEIGHT),
+            );
+            // self.grids[0].damage_tile(
+            //     thread_rng().gen_range(0, grid::GRID_WIDTH),
+            //     thread_rng().gen_range(0, grid::GRID_HEIGHT),
+            // );
+            // self.grids[0].damage_tile(
+            //     thread_rng().gen_range(0, grid::GRID_WIDTH),
+            //     thread_rng().gen_range(0, grid::GRID_HEIGHT),
+            // );
+            // self.grids[1].damage_tile(
+            //     thread_rng().gen_range(0, grid::GRID_WIDTH),
+            //     thread_rng().gen_range(0, grid::GRID_HEIGHT),
+            // );
+            self.grids[1].damage_tile(
+                thread_rng().gen_range(0, grid::GRID_WIDTH),
+                thread_rng().gen_range(0, grid::GRID_HEIGHT),
+            );
+            self.grids[2].damage_tile(
+                thread_rng().gen_range(0, grid::GRID_WIDTH),
+                thread_rng().gen_range(0, grid::GRID_HEIGHT),
+            );
+        }
+
+        // If the bottom grid is dead, remove it, add a new grid, and make the other
+        // grids start to fall
+        if self.grids[0].state == GridState::Dead {
+            self.grids.remove(0);
+            self.grids.push(Grid::new_from_module(
+                grid::GRID_HEIGHT as f32 * 3.0,
+                rand::thread_rng().choose(&self.modules).unwrap().clone(),
+            ));
+            for (i, grid) in self.grids.iter_mut().enumerate() {
+                let new_height = (i * grid::GRID_HEIGHT) as f32;
+                grid.state = GridState::Falling(new_height);
+            }
         }
         Ok(())
     }
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
         graphics::clear(ctx);
+
+        for grid in &mut self.grids {
+            grid.draw(ctx)?;
+        }
 
         for player in &self.players {
             player.draw(ctx)?;
@@ -131,7 +197,6 @@ impl ggez::event::EventHandler for MainState {
         for bullet in &self.bullets {
             bullet.draw(ctx)?;
         }
-
         graphics::present(ctx);
         Ok(())
     }

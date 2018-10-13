@@ -1,6 +1,6 @@
 use ggez::{
     event,
-    graphics::{self, Drawable, Point2, Rect, Vector2},
+    graphics::{self, Color, Drawable, Point2, Rect, Vector2},
     Context, GameResult,
 };
 
@@ -137,6 +137,15 @@ impl Player {
     }
 
     pub fn draw(&self, ctx: &mut Context) -> GameResult<()> {
+        graphics::set_color(
+            ctx,
+            Color {
+                r: 1.0,
+                g: 1.0,
+                b: 1.0,
+                a: 1.0,
+            },
+        )?;
         self.mesh.draw(ctx, crate::draw_pos(self.pos), 0.0)?;
         Ok(())
     }
