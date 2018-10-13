@@ -1,11 +1,20 @@
 use std::path;
 
-struct MainState;
 use ggez::{
     conf::{WindowMode, WindowSetup},
     graphics::{self, Point2, Rect},
     timer, Context, ContextBuilder, GameResult,
 };
+
+use crate::player::Player;
+
+mod player;
+
+const DT: f32 = 1.0 / 60.0;
+
+struct MainState {
+    players: Vec<Player>,
+}
 
 pub fn draw_pos(p: Point2) -> Point2 {
     Point2::new(p.x, 24.0 - p.y)
@@ -23,14 +32,19 @@ impl MainState {
             },
         )?;
 
-        Ok(MainState)
+        let players = vec![Player::new(ctx)?];
+        Ok(MainState { players })
     }
 }
 
 impl ggez::event::EventHandler for MainState {
     fn update(&mut self, ctx: &mut Context) -> GameResult<()> {
         const DESIRED_FPS: u32 = 60;
-        // variable update
+
+        for player in &mut self.players {
+            player.update();
+        }
+
         while timer::check_update_time(ctx, DESIRED_FPS) {
             // fixed update
         }
@@ -40,7 +54,9 @@ impl ggez::event::EventHandler for MainState {
     fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
         graphics::clear(ctx);
 
-        // draw ???
+        for player in &self.players {
+            player.draw(ctx)?;
+        }
 
         graphics::present(ctx);
         Ok(())
