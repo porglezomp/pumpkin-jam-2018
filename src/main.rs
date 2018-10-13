@@ -20,6 +20,7 @@ const MODULES_PATH: &str = "./resources/modules.txt";
 const DT: f32 = 1.0 / 60.0;
 
 struct MainState {
+    focused: bool,
     // Grids are stored from lowest visually to highest
     grids: Vec<Grid>,
     modules: Vec<Module>,
@@ -78,6 +79,7 @@ impl MainState {
         ];
 
         Ok(MainState {
+            focused: true,
             grids,
             modules,
             players,
@@ -121,6 +123,13 @@ pub fn draw_pos(p: Point2) -> Point2 {
 impl ggez::event::EventHandler for MainState {
     fn update(&mut self, ctx: &mut Context) -> GameResult<()> {
         const DESIRED_FPS: u32 = 60;
+
+        if !self.focused {
+            while timer::check_update_time(ctx, DESIRED_FPS) {}
+            timer::sleep(std::time::Duration::from_millis(10));
+            timer::yield_now();
+            return Ok(());
+        }
 
         for player in &mut self.players {
             player.update(&mut self.bullets);
@@ -180,10 +189,16 @@ impl ggez::event::EventHandler for MainState {
                 grid.state = GridState::Falling(new_height);
             }
         }
+
+        timer::yield_now();
         Ok(())
     }
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
+        if !self.focused {
+            return Ok(());
+        }
+
         graphics::clear(ctx);
 
         for grid in &mut self.grids {
@@ -247,6 +262,10 @@ impl ggez::event::EventHandler for MainState {
         instance_id: i32,
     ) {
         self.axis(axis, instance_id, value as f32 / std::i16::MAX as f32)
+    }
+
+    fn focus_event(&mut self, _ctx: &mut Context, gained: bool) {
+        self.focused = gained;
     }
 }
 
