@@ -1,4 +1,4 @@
-use ggez::graphics::{DrawMode, Point2, Rect, Vector2};
+use ggez::graphics::{Color, DrawMode, Point2, Rect, Vector2};
 use ggez::{graphics, timer, Context, GameResult};
 use std::path;
 
@@ -61,6 +61,13 @@ impl Grid {
                     w: TILE_SIZE,
                     h: TILE_SIZE,
                 };
+                let color = Color {
+                    r: x_pos.tan(),
+                    g: y_pos.tan(),
+                    b: x_pos.tan(),
+                    a: 1.0,
+                };
+                graphics::set_color(ctx, color);
                 graphics::rectangle(ctx, graphics::DrawMode::Fill, rect)?;
             }
         }
@@ -88,7 +95,15 @@ fn main() {
     let mut path = path::PathBuf::from(manifest_dir);
     path.push("resources");
     ctx.filesystem.mount(&path, true);
-
+    graphics::set_screen_coordinates(
+        ctx,
+        Rect {
+            x: 0.0,
+            y: 0.0,
+            w: GRID_WIDTH as f32,
+            h: (GRID_HEIGHT * 3) as f32,
+        },
+    );
     let state = &mut MainState::new(ctx).unwrap();
     if let Err(e) = ggez::event::run(ctx, state) {
         println!("Error encountered: {}", e);
