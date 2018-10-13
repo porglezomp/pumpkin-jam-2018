@@ -8,13 +8,17 @@ use ggez::{graphics, timer, Context, GameResult};
 use rand::{thread_rng, Rng};
 
 struct MainState {
-    grid: Grid,
+    grids: Vec<Grid>,
 }
 
 impl MainState {
     fn new(_ctx: &mut Context) -> GameResult<MainState> {
         Ok(MainState {
-            grid: Default::default(),
+            grids: vec![
+                Grid::new((GRID_HEIGHT * 0) as f32),
+                Grid::new((GRID_HEIGHT * 1) as f32),
+                Grid::new((GRID_HEIGHT * 2) as f32),
+            ],
         })
     }
 }
@@ -25,27 +29,30 @@ impl ggez::event::EventHandler for MainState {
         // variable update
         while timer::check_update_time(ctx, DESIRED_FPS) {
             // fixed update
+            for grid in &mut self.grids {
+                grid.update();
+            }
         }
-        self.grid.damage_tile(
-            thread_rng().gen_range(0, GRID_WIDTH),
-            thread_rng().gen_range(0, GRID_HEIGHT),
-        );
+
+        self.grids.retain(|grid| grid.state != GridState::Dead);
         Ok(())
     }
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
         graphics::clear(ctx);
-
-        self.grid.draw(ctx)?;
-
+        for grid in &mut self.grids {
+            grid.draw(ctx)?;
+        }
         graphics::present(ctx);
         Ok(())
     }
 }
 
-type GridCoord = usize;
 type WorldCoord = f32;
+type GridCoord = usize;
 
+pub const WORLD_WIDTH: WorldCoord = GRID_WIDTH as f32;
+pub const WORLD_HEIGHT: WorldCoord = (GRID_HEIGHT * 3) as f32;
 pub const GRID_WIDTH: GridCoord = 32;
 pub const GRID_HEIGHT: GridCoord = 8;
 pub const TILE_SIZE: WorldCoord = 1.0f32;
@@ -56,9 +63,32 @@ pub const TILE_MAX_HEALTH: usize = 5;
 struct Grid {
     grid: [[Tile; GRID_WIDTH]; GRID_HEIGHT],
     world_offset: (WorldCoord, WorldCoord),
+    state: GridState,
+    total_tiles: usize, // Number of tiles alive at the start
+    tiles_alive: usize, // Number of tiles still currently alive
 }
 
 impl Grid {
+    fn new(height: WorldCoord) -> Grid {
+        Grid {
+            grid: [[Tile { health: 5 }; GRID_WIDTH]; GRID_HEIGHT],
+            world_offset: (0.0, height),
+            state: GridState::Alive,
+            total_tiles: GRID_WIDTH * GRID_HEIGHT,
+            tiles_alive: GRID_WIDTH * GRID_HEIGHT,
+        }
+    }
+
+    fn update(&mut self) {
+        self.damage_tile(
+            thread_rng().gen_range(0, GRID_WIDTH),
+            thread_rng().gen_range(0, GRID_HEIGHT),
+        );
+        if self.percent_tiles_alive() < 0.15 {
+            self.state = GridState::Dead;
+        }
+    }
+
     fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
         for (j, row) in self.grid.iter().enumerate() {
             for (i, tile) in row.iter().enumerate() {
@@ -88,17 +118,23 @@ impl Grid {
     }
 
     fn damage_tile(&mut self, x: GridCoord, y: GridCoord) {
-        self.grid[y][x].health = self.grid[y][x].health.saturating_sub(1);
+        if self.grid[y][x].health > 0 {
+            self.grid[y][x].health -= 1;
+        } else {
+            self.tiles_alive -= 1;
+        }
+    }
+
+    fn percent_tiles_alive(&self) -> f32 {
+        self.tiles_alive as f32 / self.total_tiles as f32
     }
 }
 
-impl Default for Grid {
-    fn default() -> Grid {
-        Grid {
-            grid: [[Tile { health: 5 }; GRID_WIDTH]; GRID_HEIGHT],
-            world_offset: (0.0, 12.0),
-        }
-    }
+#[derive(Eq, PartialEq)]
+enum GridState {
+    Alive,
+    Falling,
+    Dead,
 }
 
 #[derive(Copy, Clone)]
@@ -161,10 +197,11 @@ fn main() {
         Rect {
             x: 0.0,
             y: 0.0,
-            w: GRID_WIDTH as f32,
-            h: (GRID_HEIGHT * 3) as f32,
+            w: WORLD_WIDTH,
+            h: WORLD_HEIGHT,
         },
-    ).expect("Couldn't set screen coordinates?!");
+    )
+    .expect("Couldn't set screen coordinates?!");
     let state = &mut MainState::new(ctx).unwrap();
     if let Err(e) = ggez::event::run(ctx, state) {
         println!("Error encountered: {}", e);
