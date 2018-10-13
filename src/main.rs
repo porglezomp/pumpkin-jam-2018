@@ -3,18 +3,20 @@ use std::path;
 use ggez::{
     conf::{WindowMode, WindowSetup},
     event,
-    graphics::{self, Image, Point2},
+    graphics::{self, Point2},
     timer, Context, ContextBuilder, GameResult,
 };
 use rand::{thread_rng, Rng};
 
 use crate::bullet::Bullet;
 use crate::grid::{Grid, GridState, Module};
+use crate::images::Images;
 use crate::player::{Axis, Button, Controls, Player, Team};
 
 mod bullet;
 mod draw;
 mod grid;
+mod images;
 mod player;
 
 fn joycon_controls(id: i32) -> Controls {
@@ -43,18 +45,18 @@ const _ARROW_CONTROLS: Controls = Controls {
     shoot: Button::Keyboard(event::Keycode::Comma),
 };
 
-const MODULES_PATH: &str = "./resources/modules.txt";
-const LEAVES_PATH: &str = "/leaves.png";
 const DT: f32 = 1.0 / 60.0;
+const MODULES_PATH: &str = "/modules.txt";
 
 struct MainState {
     focused: bool,
+    in_menu: bool,
     // Grids are stored from lowest visually to highest
     grids: Vec<Grid>,
     modules: Vec<Module>,
     players: Vec<Player>,
     bullets: Vec<Bullet>,
-    leaves_image: Image,
+    images: Images,
 }
 
 impl MainState {
@@ -64,7 +66,8 @@ impl MainState {
             Player::new(ctx, Team(1), joycon_controls(1))?,
         ];
 
-        let modules = grid::parse_modules_file(&path::Path::new(MODULES_PATH)).unwrap();
+        let modules =
+            grid::parse_modules_file(ctx, MODULES_PATH).expect("Should load the modules file");
         let grids = vec![
             Grid::new_from_module((grid::GRID_HEIGHT * 0) as f32, modules[2].clone()),
             Grid::new_from_module((grid::GRID_HEIGHT * 1) as f32, modules[2].clone()),
@@ -74,15 +77,16 @@ impl MainState {
             ),
         ];
 
-        let leaves_image = Image::new(ctx, path::Path::new(LEAVES_PATH))?;
+        let images = images::Images::new(ctx)?;
 
         Ok(MainState {
             focused: true,
+            in_menu: true,
             grids,
             modules,
             players,
             bullets: Vec::with_capacity(20),
-            leaves_image,
+            images,
         })
     }
 
@@ -218,8 +222,12 @@ impl ggez::event::EventHandler for MainState {
 
         graphics::clear(ctx);
 
+        if self.in_menu {
+            draw::draw(ctx, &self.images.join, Point2::new(1.0, 1.0), 0.0)?;
+        }
+
         for grid in &mut self.grids {
-            grid.draw(ctx, self.leaves_image.clone())?;
+            grid.draw(ctx, self.images.leaves.clone())?;
         }
 
         for player in &self.players {

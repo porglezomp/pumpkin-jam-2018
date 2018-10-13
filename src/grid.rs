@@ -1,5 +1,7 @@
-use std::fs;
-use std::path;
+use std::{
+    io::{BufRead, BufReader},
+    path,
+};
 
 use ggez::{
     graphics::{spritebatch::SpriteBatch, Color, DrawParam, Image, Point2, Vector2},
@@ -183,10 +185,14 @@ fn total_tiles(module: Module) -> usize {
     total_tiles
 }
 
-pub fn parse_modules_file(path: &path::Path) -> Result<Vec<Module>, String> {
-    let contents = &fs::read_to_string(path).unwrap();
+pub fn parse_modules_file<P: AsRef<path::Path>>(
+    ctx: &mut Context,
+    path: P,
+) -> GameResult<Vec<Module>> {
+    let file = ctx.filesystem.open(path)?;
+    // let contents = &fs::read_to_string(path).unwrap();
     let mut modules_list = vec![];
-    let lines: Vec<&str> = contents.lines().collect();
+    let lines: Vec<String> = BufReader::new(file).lines().collect::<Result<_, _>>()?;
 
     for module in lines.chunks(9) {
         // last line in file, stop parsing
