@@ -7,14 +7,18 @@ use ggez::{
     timer, Context, ContextBuilder, GameResult,
 };
 
-use crate::player::Player;
+use crate::bullet::Bullet;
+use crate::player::{Player, Team};
 
+mod bullet;
 mod player;
 
 const DT: f32 = 1.0 / 60.0;
 
+#[derive(Debug)]
 struct MainState {
     players: Vec<Player>,
+    bullets: Vec<Bullet>,
 }
 
 pub fn draw_pos(p: Point2) -> Point2 {
@@ -37,6 +41,7 @@ impl MainState {
         let players = vec![
             Player::new(
                 ctx,
+                Team(0),
                 Controls {
                     lr: Axis::Buttons(
                         Button::Keyboard(event::Keycode::Left),
@@ -48,6 +53,7 @@ impl MainState {
             )?,
             Player::new(
                 ctx,
+                Team(1),
                 Controls {
                     lr: Axis::Buttons(
                         Button::Keyboard(event::Keycode::A),
@@ -58,7 +64,10 @@ impl MainState {
                 },
             )?,
         ];
-        Ok(MainState { players })
+        Ok(MainState {
+            players,
+            bullets: Vec::with_capacity(20),
+        })
     }
 
     fn button(&mut self, btn: player::Button, pressed: bool) {
@@ -95,13 +104,19 @@ impl ggez::event::EventHandler for MainState {
         const DESIRED_FPS: u32 = 60;
 
         for player in &mut self.players {
-            player.update();
+            player.update(&mut self.bullets);
         }
 
         while timer::check_update_time(ctx, DESIRED_FPS) {
             for player in &mut self.players {
                 player.fixed_update();
             }
+
+            for bullet in &mut self.bullets {
+                bullet.fixed_update(&mut self.players);
+            }
+
+            self.bullets.retain(|bullet| bullet.is_alive);
         }
         Ok(())
     }
@@ -111,6 +126,10 @@ impl ggez::event::EventHandler for MainState {
 
         for player in &self.players {
             player.draw(ctx)?;
+        }
+
+        for bullet in &self.bullets {
+            bullet.draw(ctx)?;
         }
 
         graphics::present(ctx);
