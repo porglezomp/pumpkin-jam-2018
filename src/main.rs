@@ -8,6 +8,7 @@ use ggez::{graphics, timer, Context, GameResult};
 use rand::{thread_rng, Rng};
 
 struct MainState {
+    // Grids are stored from lowest visually to highest
     grids: Vec<Grid>,
 }
 
@@ -32,9 +33,21 @@ impl ggez::event::EventHandler for MainState {
             for grid in &mut self.grids {
                 grid.update();
             }
+
+            self.grids[0].damage_tile(
+                thread_rng().gen_range(0, GRID_WIDTH),
+                thread_rng().gen_range(0, GRID_HEIGHT),
+            );
         }
 
-        self.grids.retain(|grid| grid.state != GridState::Dead);
+        if self.grids[0].state == GridState::Dead {
+            self.grids.remove(0);
+            self.grids.push(Grid::new(GRID_HEIGHT as f32 * 3.0));
+            for (i, grid) in self.grids.iter_mut().enumerate() {
+                let new_height = (i * GRID_HEIGHT) as f32;
+                grid.state = GridState::Falling(new_height);
+            }
+        }
         Ok(())
     }
 
@@ -80,12 +93,13 @@ impl Grid {
     }
 
     fn update(&mut self) {
-        self.damage_tile(
-            thread_rng().gen_range(0, GRID_WIDTH),
-            thread_rng().gen_range(0, GRID_HEIGHT),
-        );
         if self.percent_tiles_alive() < 0.15 {
             self.state = GridState::Dead;
+        }
+
+        if let GridState::Falling(goal_height) = self.state {
+            self.world_offset.1 = goal_height;
+            self.state = GridState::Alive;
         }
     }
 
@@ -98,7 +112,9 @@ impl Grid {
                 }
 
                 let x_pos = self.world_offset.0 + TILE_SIZE * i as f32;
-                let y_pos = self.world_offset.1 + TILE_SIZE * j as f32;
+                // TODO: the j + 1 is a kludge and only exists because rectangles are drawn downwards. This problem
+                // should go away once we change screen coordinates to be sensible (aka: y goes upwards)
+                let y_pos = WORLD_HEIGHT - (self.world_offset.1 + TILE_SIZE * (j + 1) as f32);
                 let rect = Rect {
                     x: x_pos,
                     y: y_pos,
@@ -118,9 +134,12 @@ impl Grid {
     }
 
     fn damage_tile(&mut self, x: GridCoord, y: GridCoord) {
-        if self.grid[y][x].health > 0 {
-            self.grid[y][x].health -= 1;
-        } else {
+        if self.grid[y][x].health == 0 {
+            return;
+        }
+
+        self.grid[y][x].health -= 1;
+        if self.grid[y][x].health == 0 {
             self.tiles_alive -= 1;
         }
     }
@@ -130,10 +149,10 @@ impl Grid {
     }
 }
 
-#[derive(Eq, PartialEq)]
+#[derive(PartialEq)]
 enum GridState {
     Alive,
-    Falling,
+    Falling(WorldCoord), // Stores the target height to get to
     Dead,
 }
 
