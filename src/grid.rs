@@ -17,12 +17,12 @@ pub const GRID_HEIGHT: GridCoord = 8;
 pub const TILE_SIZE: WorldCoord = 1.0f32;
 pub const TILE_MAX_HEALTH: usize = 5;
 
-pub const DEATH_THRESHOLD: f32 = 0.50;
+pub const DEATH_THRESHOLD: f32 = 0.95;
 
 /// A grid contains the collidable tiles that our dynamic objects interact with
 pub struct Grid {
-    module: Module,                         // Stored such that row zero is the bottom row
-    world_offset: (WorldCoord, WorldCoord), // lower left corner
+    module: Module, // Stored such that row zero is the bottom row
+    pub world_offset: (WorldCoord, WorldCoord), // lower left corner
     pub state: GridState,
     total_tiles: usize, // Number of tiles alive at the start
     tiles_alive: usize, // Number of tiles still currently alive
@@ -44,14 +44,37 @@ impl Grid {
         }
     }
 
-    pub fn update(&mut self) {
-        if self.percent_tiles_alive() < DEATH_THRESHOLD {
-            self.state = GridState::Dead;
+    pub fn height(&self) -> f32 {
+        self.world_offset.1
+    }
+
+    pub fn update(&mut self, grid_below: Option<&Grid>) {
+        use self::GridState::*;
+
+        if self.percent_tiles_alive() < DEATH_THRESHOLD && self.state == Alive {
+            self.state = Dead;
+        }
+        const GRID_HEIGHT_F32: f32 = TILE_SIZE * GRID_HEIGHT as f32;
+        if let Some(grid_below) = grid_below {
+            match (&self.state, &grid_below.state) {
+                (Alive, AliveFalling(goal_height)) | (Alive, DeadFalling(goal_height)) => {
+                    if self.height() - grid_below.height() > 2.0 * TILE_SIZE + GRID_HEIGHT_F32 {
+                        self.state = AliveFalling(goal_height + GRID_HEIGHT_F32);
+                    }
+                }
+                _ => (),
+            }
         }
 
-        if let GridState::Falling(goal_height) = self.state {
-            self.world_offset.1 = goal_height;
-            self.state = GridState::Alive;
+        match self.state {
+            AliveFalling(goal_height) | DeadFalling(goal_height) => {
+                self.world_offset.1 -= 0.5;
+                if (goal_height - self.world_offset.1).abs() < 0.1 {
+                    self.world_offset.1 = goal_height;
+                    self.state = GridState::Alive;
+                }
+            }
+            _ => (),
         }
     }
 
@@ -115,7 +138,8 @@ impl Grid {
 #[derive(PartialEq)]
 pub enum GridState {
     Alive,
-    Falling(WorldCoord), // Stores the target height to get to
+    AliveFalling(WorldCoord), // Stores the target height to get to
+    DeadFalling(WorldCoord),  // Stores the target height to get to
     Dead,
 }
 

@@ -118,8 +118,6 @@ impl Player {
         }
 
         self.acc.x += self.control_state.lr / crate::DT;
-
-        println!("player: {:?}", self.pos);
     }
 
     pub fn fixed_update(&mut self) {
