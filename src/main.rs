@@ -224,6 +224,11 @@ fn parse_modules_file(path: &path::Path) -> Result<Vec<[[Tile; GRID_WIDTH]; GRID
     let lines: Vec<&str> = contents.lines().collect();
 
     for module in lines.chunks(9) {
+        // last line in file, stop parsing
+        if module.len() == 1 {
+            assert_eq!(module[0].trim(), "");
+            break;
+        }
         assert_eq!(module.len(), 9);
         assert_eq!(module[8].trim(), "-");
         let mut grid = [[Tile::Air; GRID_WIDTH]; GRID_HEIGHT];
