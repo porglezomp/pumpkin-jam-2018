@@ -2,10 +2,17 @@ use std::io::Read;
 
 use ggez::{Context, GameResult};
 
-use crate::draw::WorldCoord;
-use crate::grid::GridCoord;
+use crate::draw;
 
 const CONFIG_FILE: &str = "/config.toml";
+
+#[derive(Deserialize)]
+pub struct MenuInfo {
+    pub join_pos: (f32, f32),
+    pub heart_pos: (f32, f32),
+    pub ready_pos: (f32, f32),
+    pub life_pos: (f32, f32),
+}
 
 macro_rules! config {
     ($($(const $CNAME:ident: $cty:ty = $cval:expr;)* config $NAME:ident: $fieldname:ident = $Name:ident {
@@ -20,7 +27,8 @@ macro_rules! config {
 
         #[allow(non_snake_case)]
         mod $NAME {
-            use super::$Name;
+            #[allow(unused)]
+            use super::*;
             pub static mut $NAME: $Name = $Name {
                 $($var: $val,)*
             };
@@ -67,7 +75,8 @@ config! {
     };
 
     config PLAYER: player = Player {
-        max_health: u8 = 3,
+        max_health: u8 = 4,
+        max_lives: u8 = 4,
         height: f32 = 0.8,
         width: f32 = 0.8,
         shoot_offset_x: f32 = 0.8 / 1.5,
@@ -82,4 +91,34 @@ config! {
         no_spawn_threshold: f32 = 0.5,
     };
 
+    config MENU: menu = Menu {
+        life_offset: (f32, f32) = (1.2, 0.0),
+        heart_offset: (f32, f32) = (0.7, 0.0),
+        pos: [MenuInfo; 4] = [
+            MenuInfo {
+                join_pos: (draw::WORLD_WIDTH - 9.0, 1.0),
+                heart_pos: (draw::WORLD_WIDTH - 3.0, 1.0),
+                ready_pos: (draw::WORLD_WIDTH - 4.5, 2.0),
+                life_pos: (draw::WORLD_WIDTH - 4.5, 2.0),
+            },
+            MenuInfo {
+                join_pos:(1.0, 1.0),
+                heart_pos: (1.0, 1.0),
+                ready_pos: (0.5, 2.0),
+                life_pos: (0.5, 2.0),
+            },
+            MenuInfo {
+                join_pos: (1.0, draw::WORLD_HEIGHT - 3.0),
+                heart_pos:(1.0, draw::WORLD_HEIGHT - 2.0),
+                ready_pos: (0.5, draw::WORLD_HEIGHT - 3.0),
+                life_pos: (0.5, draw::WORLD_HEIGHT - 3.0),
+            },
+            MenuInfo {
+                join_pos: (draw::WORLD_WIDTH - 9.0, draw::WORLD_HEIGHT - 3.0),
+                heart_pos: (draw::WORLD_WIDTH - 3.0, draw::WORLD_HEIGHT - 2.0),
+                ready_pos: (draw::WORLD_WIDTH - 4.5, draw::WORLD_HEIGHT - 3.0),
+                life_pos: (draw::WORLD_WIDTH - 4.5, draw::WORLD_HEIGHT - 3.0),
+            },
+        ],
+    };
 }

@@ -52,7 +52,8 @@ pub struct Player {
     pos: Point2,
     vel: Vector2,
     acc: Vector2,
-    pub health: u8,
+    health: u8,
+    pub lives: u8,
     pub cooldown: f32,
     pub alive: bool,
     pub grounded: bool,
@@ -69,11 +70,16 @@ impl Player {
             vel: Vector2::new(0.0, 0.0),
             acc: Vector2::new(0.0, 0.0),
             health: PLAYER.max_health,
+            lives: PLAYER.max_lives,
             cooldown: 0.0,
             alive: false,
             grounded: false,
             ready: false,
         }
+    }
+
+    pub fn health(&self) -> u8 {
+        self.health
     }
 
     fn controls(&mut self) {
@@ -131,8 +137,8 @@ impl Player {
 
         self.acc.x += self.control_state.lr / crate::DT;
 
-        if self.health == 0 || self.pos.y < 0.0 {
-            self.alive = false;
+        if self.pos.y < -2.0 {
+            self.damage();
         }
     }
 
@@ -203,8 +209,19 @@ impl Player {
         Ok(())
     }
 
+    pub fn kill(&mut self) {
+        assert_eq!(self.health, 0);
+        if self.alive {
+            self.lives = self.lives.saturating_sub(1);
+        }
+        self.alive = false;
+    }
+
     pub fn damage(&mut self) {
         self.health = self.health.saturating_sub(1);
+        if self.health == 0 {
+            self.kill();
+        }
     }
 
     pub fn rect(&self) -> Rect {

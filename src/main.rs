@@ -13,7 +13,7 @@ use ggez::{
 use rand::{thread_rng, Rng};
 
 use crate::bullet::Bullet;
-use crate::config::{GRID, PLAYER, TEAM};
+use crate::config::{GRID, MENU, PLAYER, TEAM};
 use crate::grid::{Grid, GridState, Module};
 use crate::images::Images;
 use crate::player::{Axis, Button, Controls, Player, Team};
@@ -295,60 +295,54 @@ impl ggez::event::EventHandler for MainState {
             bullet.draw(ctx, &self.images)?;
         }
 
-        struct MenuInfo {
-            join_pos: Point2,
-            heart_pos: Point2,
-            ready_pos: Point2,
-        }
-
-        let menu_info = [
-            MenuInfo {
-                join_pos: Point2::new(draw::WORLD_WIDTH - 9.0, 1.0),
-                heart_pos: Point2::new(draw::WORLD_WIDTH - 3.0, 1.0),
-                ready_pos: Point2::new(draw::WORLD_WIDTH - 4.5, 2.0),
-            },
-            MenuInfo {
-                join_pos: Point2::new(1.0, 1.0),
-                heart_pos: Point2::new(1.0, 1.0),
-                ready_pos: Point2::new(0.5, 2.0),
-            },
-            MenuInfo {
-                join_pos: Point2::new(1.0, draw::WORLD_HEIGHT - 3.0),
-                heart_pos: Point2::new(1.0, draw::WORLD_HEIGHT - 2.0),
-                ready_pos: Point2::new(0.5, draw::WORLD_HEIGHT - 3.0),
-            },
-            MenuInfo {
-                join_pos: Point2::new(draw::WORLD_WIDTH - 9.0, draw::WORLD_HEIGHT - 3.0),
-                heart_pos: Point2::new(draw::WORLD_WIDTH - 3.0, draw::WORLD_HEIGHT - 2.0),
-                ready_pos: Point2::new(draw::WORLD_WIDTH - 4.5, draw::WORLD_HEIGHT - 3.0),
-            },
-        ];
-
         let mut hearts = draw::Batch::atlas(self.images.heart.clone(), 2, 1);
+        let mut lives = draw::Batch::atlas(self.images.lives.clone(), 2, 1);
         let mut ready = draw::Batch::atlas(self.images.ready.clone(), 1, 1);
         let a = if time % 1.5 < 0.8 { 1.0 } else { 0.25 };
-        for ((player, info), &color) in self.players.iter().zip(&menu_info).zip(&TEAM.colors) {
+        for ((player, info), &color) in self.players.iter().zip(&MENU.pos).zip(&TEAM.colors) {
+            let join_pos = Point2::new(info.join_pos.0, info.join_pos.1);
+            let heart_pos = Point2::new(info.heart_pos.0, info.heart_pos.1);
+            let ready_pos = Point2::new(info.ready_pos.0, info.ready_pos.1);
+            let life_pos = Point2::new(info.life_pos.0, info.life_pos.1);
+            let life_offset = Vector2::new(MENU.life_offset.0, MENU.life_offset.1);
+            let heart_offset = Vector2::new(MENU.heart_offset.0, MENU.heart_offset.1);
             if let Some(player) = player {
                 for heart in 0..PLAYER.max_health {
-                    let sprite = if player.health > heart { 0 } else { 1 };
-                    let offset = heart as f32 * Vector2::new(0.7, 0.0);
+                    let sprite = if player.health() > heart { 0 } else { 1 };
+                    let offset = heart as f32 * heart_offset;
                     hearts.add(
                         sprite,
                         DrawParam {
-                            dest: info.heart_pos + offset,
+                            dest: heart_pos + offset,
                             color: Some(color.into()),
                             ..Default::default()
                         },
                     );
-                    if self.in_menu && player.ready {
+                }
+
+                if self.in_menu {
+                    if player.ready {
                         ready.add(
                             0,
                             DrawParam {
-                                dest: info.ready_pos,
+                                dest: ready_pos,
                                 color: Some(color.into()),
                                 ..Default::default()
                             },
                         );
+                    }
+                } else {
+                    for life in 0..PLAYER.max_lives {
+                        let sprite = if player.lives > life { 0 } else { 1 };
+                        let offset = life as f32 * life_offset;
+                        lives.add(
+                            sprite,
+                            DrawParam {
+                                dest: life_pos + offset,
+                                color: Some(color.into()),
+                                ..Default::default()
+                            },
+                        )
                     }
                 }
             } else {
@@ -357,7 +351,7 @@ impl ggez::event::EventHandler for MainState {
                         ctx,
                         &self.images.join,
                         DrawParam {
-                            dest: info.join_pos,
+                            dest: join_pos,
                             color: Some(Color { a, ..color.into() }),
                             ..Default::default()
                         },
@@ -367,6 +361,7 @@ impl ggez::event::EventHandler for MainState {
         }
         ready.draw(ctx, Default::default())?;
         hearts.draw(ctx, Default::default())?;
+        lives.draw(ctx, Default::default())?;
 
         graphics::present(ctx);
         Ok(())
