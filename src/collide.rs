@@ -25,34 +25,6 @@ pub fn resolve_collider_horiz(rect: Rect, velocity: Vector2, fixed: Rect) -> (f3
     (0.0, velocity)
 }
 
-pub fn resolve_colliders_horiz(
-    rect: Rect,
-    velocity: Vector2,
-    colliders: &[Rect],
-) -> (f32, Vector2) {
-    let mut net_disp = Vector2::new(0.0, 0.0);
-    let mut net_vel = velocity;
-    for collider in colliders {
-        let disp_rect = math::rect_from_point(rect.point() + net_disp, rect.w, rect.h);
-        let (res_x_disp, res_vel) = resolve_collider_horiz(disp_rect, net_vel, *collider);
-        net_disp.x += res_x_disp;
-        net_vel = res_vel;
-    }
-    (net_disp.x, net_vel)
-}
-
-pub fn resolve_colliders_vert(rect: Rect, velocity: Vector2, colliders: &[Rect]) -> (f32, Vector2) {
-    let mut net_disp = Vector2::new(0.0, 0.0);
-    let mut net_vel = velocity;
-    for collider in colliders {
-        let disp_rect = math::rect_from_point(rect.point() + net_disp, rect.w, rect.h);
-        let (res_y_disp, res_vel) = resolve_collider_vert(disp_rect, net_vel, *collider);
-        net_disp.y += res_y_disp;
-        net_vel = res_vel;
-    }
-    (net_disp.y, net_vel)
-}
-
 /// Give the vertical displacement and resulting velocity of a moving rectangle intersecting another rectangle
 /// Assumes that the origin of the rectanges are at the lower left corner.
 pub fn resolve_collider_vert(rect: Rect, velocity: Vector2, fixed: Rect) -> (f32, Vector2) {
@@ -72,3 +44,22 @@ pub fn resolve_collider_vert(rect: Rect, velocity: Vector2, fixed: Rect) -> (f32
     }
     (0.0, velocity)
 }
+
+macro_rules! resolve_colliders {
+    ($fname:ident, $worker:ident, $dim:ident) => {
+        pub fn $fname(rect: Rect, velocity: Vector2, colliders: &[Rect]) -> (f32, Vector2) {
+            let mut net_disp = Vector2::new(0.0, 0.0);
+            let mut net_vel = velocity;
+            for collider in colliders {
+                let disp_rect = math::rect_from_point(rect.point() + net_disp, rect.w, rect.h);
+                let (res_disp, res_vel) = $worker(disp_rect, net_vel, *collider);
+                net_disp.$dim += res_disp;
+                net_vel = res_vel;
+            }
+            (net_disp.$dim, net_vel)
+        }
+    };
+}
+
+resolve_colliders!(resolve_colliders_horiz, resolve_collider_horiz, x);
+resolve_colliders!(resolve_colliders_vert, resolve_collider_vert, y);
