@@ -6,13 +6,13 @@ use crate::math;
 pub type WorldRect = Rect;
 pub const COLLISION_TOLERANCE: f32 = 0.01;
 
-pub fn get_overlapping_tiles(grids: &[Grid], rect: Rect, out: &mut Vec<WorldRect>) {
+pub fn get_overlapping_tiles(grids: &[Grid], rect: Rect, out: &mut Vec<(WorldRect, Vector2)>) {
     let mut tiles = Vec::with_capacity(6);
     for grid in grids {
         tiles.clear();
         grid.overlapping_tiles(rect, &mut tiles);
         for &tile in &tiles {
-            out.push(grid.to_world_collider(tile))
+            out.push((grid.to_world_collider(tile), grid.vel));
         }
     }
 }
@@ -59,14 +59,18 @@ pub fn resolve_collider_vert(rect: Rect, velocity: Vector2, fixed: Rect) -> (f32
 
 macro_rules! resolve_colliders {
     ($fname:ident, $worker:ident, $dim:ident) => {
-        pub fn $fname(rect: Rect, velocity: Vector2, colliders: &[Rect]) -> (f32, Vector2) {
+        pub fn $fname(
+            rect: Rect,
+            velocity: Vector2,
+            colliders: &[(Rect, Vector2)],
+        ) -> (f32, Vector2) {
             let mut net_disp = Vector2::new(0.0, 0.0);
             let mut net_vel = velocity;
-            for collider in colliders {
+            for (collider, vel) in colliders {
                 let disp_rect = math::rect_from_point(rect.point() + net_disp, rect.w, rect.h);
-                let (res_disp, res_vel) = $worker(disp_rect, net_vel, *collider);
+                let (res_disp, res_vel) = $worker(disp_rect, net_vel - vel, *collider);
                 net_disp.$dim += res_disp;
-                net_vel = res_vel;
+                net_vel = res_vel + vel;
             }
             (net_disp.$dim, net_vel)
         }
