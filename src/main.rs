@@ -402,8 +402,14 @@ impl ggez::event::EventHandler for MainState {
         self.axis(axis, instance_id, value as f32 / std::i16::MAX as f32)
     }
 
-    fn focus_event(&mut self, _ctx: &mut Context, gained: bool) {
+    fn focus_event(&mut self, ctx: &mut Context, gained: bool) {
         self.focused = gained;
+        if gained {
+            match Images::new(ctx) {
+                Ok(images) => self.images = images,
+                Err(err) => println!("Error reloading images: {}", err),
+            }
+        }
     }
 }
 
