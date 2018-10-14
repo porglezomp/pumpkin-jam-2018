@@ -17,7 +17,7 @@ use crate::config::{GRID, MENU, PLAYER, TEAM};
 use crate::grid::{Grid, GridState, Module};
 use crate::images::Images;
 use crate::player::{Axis, Button, Controls, Player, Team};
-use crate::sound::Sound;
+use crate::sound::{Sound, SoundEffect};
 
 mod bullet;
 mod collide;
@@ -199,7 +199,7 @@ impl ggez::event::EventHandler for MainState {
         }
 
         for grid in &mut self.grids {
-            grid.fixed_update();
+            grid.fixed_update(ctx, &mut self.sounds);
         }
 
         for player in somes_mut(&mut self.players) {
@@ -237,7 +237,13 @@ impl ggez::event::EventHandler for MainState {
             }
 
             for bullet in &mut self.bullets {
-                bullet.fixed_update(&mut self.grids, &mut self.players, self.in_menu);
+                bullet.fixed_update(
+                    ctx,
+                    &mut self.sounds,
+                    &mut self.grids,
+                    &mut self.players,
+                    self.in_menu,
+                );
             }
             self.bullets.retain(|bullet| bullet.is_alive);
 
@@ -271,6 +277,7 @@ impl ggez::event::EventHandler for MainState {
                 if let GridState::DeadFalling(goal_height) = self.grids[0].state {
                     if self.grids[0].height() - goal_height < 0.1 {
                         self.grids.remove(0);
+                        self.sounds.play_sound(ctx, SoundEffect::GridFallOffscreen);
                     }
                 }
             } else {

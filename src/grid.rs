@@ -4,7 +4,7 @@ use std::{
 };
 
 use ggez::{
-    graphics::{Color, DrawParam, Point2, Vector2},
+    graphics::{DrawParam, Point2, Vector2},
     Context, GameResult,
 };
 use rand;
@@ -14,6 +14,7 @@ use crate::collide::WorldRect;
 use crate::config::GRID;
 use crate::draw::{self, Batch, WorldCoord};
 use crate::math;
+use crate::sound::{Sound, SoundEffect};
 use crate::Images;
 
 pub type Module = [[Tile; GRID_WIDTH]; GRID_HEIGHT];
@@ -53,7 +54,7 @@ impl Grid {
         self.world_offset.y
     }
 
-    pub fn fixed_update(&mut self) {
+    pub fn fixed_update(&mut self, ctx: &mut Context, sounds: &mut Sound) {
         use self::GridState::*;
         self.vel += self.acc * crate::DT;
         self.world_offset += self.vel * crate::DT;
@@ -65,6 +66,12 @@ impl Grid {
                     self.state = GridState::Alive;
                     self.vel = Vector2::new(0.0, 0.0);
                     self.acc = Vector2::new(0.0, 0.0);
+                    let sound_effect = if goal_height == 0.0 {
+                        SoundEffect::GridLandBottom
+                    } else {
+                        SoundEffect::GridLand
+                    };
+                    sounds.play_sound(ctx, sound_effect);
                 }
             }
             Alive | Dead => (),
@@ -137,7 +144,7 @@ impl Grid {
         batch.draw(ctx, param)?;
         Ok(())
     }
-
+    /// If sounds is None then no soundeffect is played
     pub fn damage_tile(&mut self, x: GridCoord, y: GridCoord) {
         use self::Tile::*;
         match self.module[y][x] {
