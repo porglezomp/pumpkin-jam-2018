@@ -75,12 +75,9 @@ impl MainState {
         let modules =
             grid::parse_modules_file(ctx, MODULES_PATH).expect("Should load the modules file");
         let grids = vec![
-            Grid::new_from_module((grid::GRID_HEIGHT * 0) as f32, modules[2].clone()),
-            Grid::new_from_module((grid::GRID_HEIGHT * 1) as f32, modules[2].clone()),
-            Grid::new_from_module(
-                (grid::GRID_HEIGHT * 2) as f32,
-                rand::thread_rng().choose(&modules).unwrap().clone(),
-            ),
+            Grid::new_from_module((grid::GRID_HEIGHT * 0) as f32, modules[0].clone()),
+            Grid::new_from_module((grid::GRID_HEIGHT * 1) as f32, modules[0].clone()),
+            Grid::new_from_module((grid::GRID_HEIGHT * 2) as f32, modules[0].clone()),
         ];
 
         let images = images::Images::new(ctx)?;
@@ -182,6 +179,22 @@ impl ggez::event::EventHandler for MainState {
             return Ok(());
         }
 
+        if self.in_menu {
+            let mut ready = true;
+            let mut player_count = 0;
+            for player in somes_mut(&mut self.players) {
+                ready &= player.ready;
+                player_count += 1;
+            }
+            if ready && player_count >= 2 {
+                self.in_menu = false;
+            }
+        }
+
+        for grid in &mut self.grids {
+            grid.fixed_update();
+        }
+
         for player in somes_mut(&mut self.players) {
             player.update(ctx, &mut self.bullets, &mut self.sounds);
         }
@@ -202,39 +215,33 @@ impl ggez::event::EventHandler for MainState {
                         {
                             continue;
                         }
-                        let result = player.respawn(&self.grids[i]);
-                        if result {
+                        if player.respawn(&self.grids[i]) {
                             break;
                         }
                     }
 
                     if !player.alive {
-                        println!("cant find a spot");
+                        println!("Player {:?} cant find a spot", player.team);
                     }
                 }
             }
 
             for bullet in &mut self.bullets {
-                bullet.fixed_update(somes_mut(&mut self.players));
+                bullet.fixed_update(&mut self.grids, &mut self.players, self.in_menu);
             }
-
             self.bullets.retain(|bullet| bullet.is_alive);
-            for grid in &mut self.grids {
-                grid.fixed_update();
-            }
 
-            self.grids[0].damage_tile(
-                thread_rng().gen_range(0, grid::GRID_WIDTH),
-                thread_rng().gen_range(0, grid::GRID_HEIGHT),
-            );
-            self.grids[0].damage_tile(
-                thread_rng().gen_range(0, grid::GRID_WIDTH),
-                thread_rng().gen_range(0, grid::GRID_HEIGHT),
-            );
-            self.grids[0].damage_tile(
-                thread_rng().gen_range(0, grid::GRID_WIDTH),
-                thread_rng().gen_range(0, grid::GRID_HEIGHT),
-            );
+            if thread_rng().gen_bool(0.2) {
+                let grid_id = *thread_rng()
+                    .choose(&[
+                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2,
+                    ])
+                    .unwrap();
+                self.grids[grid_id].damage_tile(
+                    thread_rng().gen_range(0, grid::GRID_WIDTH),
+                    thread_rng().gen_range(0, grid::GRID_HEIGHT),
+                );
+            }
         }
 
         for i in 0..self.grids.len() {
@@ -279,24 +286,6 @@ impl ggez::event::EventHandler for MainState {
             grid.draw(ctx, &self.images)?;
         }
 
-        draw::draw_sprite(
-            ctx,
-            &self.images.start_flag,
-            DrawParam {
-                dest: Point2::new(8.0, 12.0),
-                ..Default::default()
-            },
-        )?;
-
-        draw::draw_sprite(
-            ctx,
-            &self.images.leave_flag,
-            DrawParam {
-                dest: Point2::new(24.0, 12.0),
-                ..Default::default()
-            },
-        )?;
-
         for player in somes_mut(&mut self.players) {
             player.draw(ctx, &self.images)?;
         }
@@ -308,28 +297,34 @@ impl ggez::event::EventHandler for MainState {
         struct MenuInfo {
             join_pos: Point2,
             heart_pos: Point2,
+            ready_pos: Point2,
         }
 
         let menu_info = [
             MenuInfo {
                 join_pos: Point2::new(draw::WORLD_WIDTH - 9.0, 1.0),
                 heart_pos: Point2::new(draw::WORLD_WIDTH - 3.0, 1.0),
+                ready_pos: Point2::new(draw::WORLD_WIDTH - 4.5, 2.0),
             },
             MenuInfo {
                 join_pos: Point2::new(1.0, 1.0),
                 heart_pos: Point2::new(1.0, 1.0),
+                ready_pos: Point2::new(0.5, 2.0),
             },
             MenuInfo {
                 join_pos: Point2::new(1.0, draw::WORLD_HEIGHT - 3.0),
                 heart_pos: Point2::new(1.0, draw::WORLD_HEIGHT - 2.0),
+                ready_pos: Point2::new(0.5, draw::WORLD_HEIGHT - 3.0),
             },
             MenuInfo {
                 join_pos: Point2::new(draw::WORLD_WIDTH - 9.0, draw::WORLD_HEIGHT - 3.0),
                 heart_pos: Point2::new(draw::WORLD_WIDTH - 3.0, draw::WORLD_HEIGHT - 2.0),
+                ready_pos: Point2::new(draw::WORLD_WIDTH - 4.5, draw::WORLD_HEIGHT - 3.0),
             },
         ];
 
         let mut hearts = draw::Batch::atlas(self.images.heart.clone(), 2, 1);
+        let mut ready = draw::Batch::atlas(self.images.ready.clone(), 1, 1);
         let a = if time % 1.5 < 0.8 { 1.0 } else { 0.25 };
         for ((player, info), &color) in self
             .players
@@ -349,6 +344,16 @@ impl ggez::event::EventHandler for MainState {
                             ..Default::default()
                         },
                     );
+                    if self.in_menu && player.ready {
+                        ready.add(
+                            0,
+                            DrawParam {
+                                dest: info.ready_pos,
+                                color: Some(color),
+                                ..Default::default()
+                            },
+                        );
+                    }
                 }
             } else {
                 if self.in_menu {
@@ -364,6 +369,7 @@ impl ggez::event::EventHandler for MainState {
                 }
             }
         }
+        ready.draw(ctx, Default::default())?;
         hearts.draw(ctx, Default::default())?;
 
         graphics::present(ctx);
@@ -418,8 +424,14 @@ impl ggez::event::EventHandler for MainState {
         self.axis(axis, instance_id, value as f32 / std::i16::MAX as f32)
     }
 
-    fn focus_event(&mut self, _ctx: &mut Context, gained: bool) {
+    fn focus_event(&mut self, ctx: &mut Context, gained: bool) {
         self.focused = gained;
+        if gained {
+            match Images::new(ctx) {
+                Ok(images) => self.images = images,
+                Err(err) => println!("Error reloading images: {}", err),
+            }
+        }
     }
 }
 

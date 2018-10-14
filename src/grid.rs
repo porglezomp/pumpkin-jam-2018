@@ -21,7 +21,7 @@ pub type GridCoord = usize;
 pub const GRID_WIDTH: GridCoord = 32;
 pub const GRID_HEIGHT: GridCoord = 8;
 pub const TILE_SIZE: WorldCoord = 1.0f32;
-pub const TILE_MAX_HEALTH: u8 = 5;
+pub const TILE_MAX_HEALTH: u8 = 4;
 const GRID_TO_WORLD: f32 = TILE_SIZE as f32 * draw::WORLD_WIDTH / GRID_WIDTH as f32;
 
 pub const GRID_FALLING_ACCEL: f32 = -25.0;
@@ -96,25 +96,37 @@ impl Grid {
 
     pub fn draw(&mut self, ctx: &mut Context, images: &Images) -> GameResult<()> {
         use self::Tile::*;
-        let mut batch = Batch::new(images.leaves.clone());
+        let mut batch = Batch::atlas(images.tiles.clone(), 16, 16);
         for (j, row) in self.module.iter().enumerate() {
             for (i, tile) in row.iter().enumerate() {
+                let dest = Point2::new(TILE_SIZE * i as f32, TILE_SIZE * j as f32);
                 match *tile {
                     Air => continue,
+                    Tile::Start(idx) => batch.add(
+                        17 + idx as usize,
+                        DrawParam {
+                            dest,
+                            ..Default::default()
+                        },
+                    ),
+                    Tile::Leave => batch.add(
+                        16,
+                        DrawParam {
+                            dest,
+                            ..Default::default()
+                        },
+                    ),
                     Solid(health) => {
                         // Tile is dead, don't need to render
                         if health == 0 {
                             continue;
                         }
+
+                        let idx = (0 + (TILE_MAX_HEALTH - health)) as usize;
                         batch.add(
-                            0,
+                            idx,
                             DrawParam {
-                                dest: Point2::new(TILE_SIZE * i as f32, TILE_SIZE * j as f32),
-                                color: Some(color_lerp(
-                                    BROKEN,
-                                    HEALTHY,
-                                    (health - 1) as f32 / (TILE_MAX_HEALTH - 1) as f32,
-                                )),
+                                dest,
                                 ..Default::default()
                             },
                         );
@@ -144,7 +156,7 @@ impl Grid {
                     self.module[y][x] = Tile::Air;
                 }
             }
-            Air => return,
+            Leave | Start(_) | Air => (),
         }
     }
 
@@ -201,11 +213,18 @@ impl Grid {
 
     pub fn to_world_collider(&self, tile: (Tile, usize, usize)) -> WorldRect {
         use self::Tile::*;
+        const NO_RECT: WorldRect = WorldRect {
+            x: -100.0,
+            y: -100.0,
+            w: 0.0,
+            h: 0.0,
+        };
         match tile.0 {
-            Solid(_) => {
+            Start(_) | Solid(_) => {
                 let tile_point = self.to_world_coords((tile.1, tile.2));
                 math::rect_from_point(tile_point, TILE_SIZE, TILE_SIZE)
             }
+            Leave => NO_RECT,
             Air => unreachable!(),
         }
     }
@@ -283,6 +302,10 @@ fn text_to_row(row: &str) -> Result<[Tile; GRID_WIDTH], String> {
     let mut tiles = [Tile::Air; GRID_WIDTH];
     for (i, character) in row.trim_right().chars().enumerate() {
         match character {
+            '[' => tiles[i] = Tile::Start(0),
+            '!' => tiles[i] = Tile::Start(1),
+            ']' => tiles[i] = Tile::Start(2),
+            '?' => tiles[i] = Tile::Leave,
             '#' => tiles[i] = Tile::Solid(TILE_MAX_HEALTH),
             ' ' => tiles[i] = Tile::Air,
             _ => {
@@ -300,32 +323,6 @@ fn text_to_row(row: &str) -> Result<[Tile; GRID_WIDTH], String> {
 pub enum Tile {
     Air,
     Solid(u8),
-}
-
-pub const HEALTHY: Color = Color {
-    r: 0.8,
-    g: 0.5,
-    b: 0.2,
-    a: 1.0,
-};
-
-pub const BROKEN: Color = Color {
-    r: 0.3,
-    g: 0.2,
-    b: 0.2,
-    a: 1.0,
-};
-
-// todo : make this not stupid
-pub fn color_lerp(a: Color, b: Color, t: f32) -> Color {
-    fn f32_lerp(a: f32, b: f32, t: f32) -> f32 {
-        a + (b - a) * t
-    }
-
-    Color::new(
-        f32_lerp(a.r, b.r, t),
-        f32_lerp(a.g, b.g, t),
-        f32_lerp(a.b, b.b, t),
-        f32_lerp(a.a, b.a, t),
-    )
+    Start(u8),
+    Leave,
 }
