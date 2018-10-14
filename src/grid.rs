@@ -189,7 +189,7 @@ impl Grid {
     }
 }
 
-fn clamp(lower: f32, upper: f32, n: f32) -> f32 {
+pub fn clamp(lower: f32, upper: f32, n: f32) -> f32 {
     if upper < n {
         return upper;
     } else if lower > n {
