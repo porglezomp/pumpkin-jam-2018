@@ -239,20 +239,23 @@ pub enum GridState {
 }
 
 pub fn find_spawn_location(module: Module) -> Option<(GridCoord, GridCoord)> {
-    let mut columns: Vec<usize> = (0..GRID_WIDTH).collect();
+    let mut columns: Vec<usize> = (1..GRID_WIDTH - 1).collect();
     rand::thread_rng().shuffle(&mut columns);
-    for col in columns {
-        for row in 0..(GRID_HEIGHT - 2) {
-            let ground_tile = if let Tile::Solid(_) = module[row][col] {
-                true
-            } else {
-                false
-            };
-            let tile_above = module[row + 1][col] == Tile::Air;
-            let tile_two_above = module[row + 2][col] == Tile::Air;
-            if ground_tile && tile_above && tile_two_above {
-                return Some((row, col));
+    for x in columns {
+        for y in 0..(GRID_HEIGHT - 2) {
+            for i in x - 1..=x + 1 {
+                let ground_tile = if let Tile::Solid(_) = module[y][i] {
+                    true
+                } else {
+                    false
+                };
+                let tile_above = module[y + 1][i] == Tile::Air;
+                let tile_two_above = module[y + 2][i] == Tile::Air;
+                if !(ground_tile && tile_above && tile_two_above) {
+                    break;
+                }
             }
+            return Some((x, y));
         }
     }
     None
