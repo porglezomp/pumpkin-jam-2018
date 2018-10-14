@@ -7,32 +7,30 @@ use ggez::{
 };
 use rand::Rng;
 
-const JUMPS_PATH: &[&str] = &[
-    "/jump1.ogg",
-    "/jump2.ogg",
-    "/jump3.ogg",
-    "/jump4.ogg",
-    "/jump5.ogg",
-];
-const BREAK_BLOCKS_PATH: &[&str] = &["/break1.ogg", "/break2.ogg", "/break3.ogg"];
-const SHOOT_PATH: &[&str] = &["/shoot1.ogg", "/shoot2.ogg", "/shoot3.ogg", "/shoot4.ogg"];
-const LAND_PATH: &[&str] = &["/land1.ogg"];
+const BREAK_BLOCKS: &str = "/break1.ogg";
+const SHOOT: &[&str; 4] = &["/shoot1.ogg", "/shoot2.ogg", "/shoot3.ogg", "/shoot4.ogg"];
+const LAND: &str = "/land1.ogg";
+
+const JUMP: &str = "/jump1.ogg";
+const DOUBLE_JUMP: &str = "/jump5.ogg";
 
 pub struct Sound {
-    jump: Vec<SoundData>,
-    land: Vec<SoundData>,
+    jump: SoundData,
+    double_jump: SoundData,
+    land: SoundData,
     shoot: Vec<SoundData>,
-    break_block: Vec<SoundData>,
+    break_block: SoundData,
     sources: Vec<Source>,
 }
 
 impl Sound {
     pub fn new(ctx: &mut Context) -> GameResult<Sound> {
         Ok(Sound {
-            jump: to_sounds(ctx, JUMPS_PATH)?,
-            break_block: to_sounds(ctx, BREAK_BLOCKS_PATH)?,
-            shoot: to_sounds(ctx, SHOOT_PATH)?,
-            land: to_sounds(ctx, LAND_PATH)?,
+            jump: SoundData::new(ctx, JUMP)?,
+            double_jump: SoundData::new(ctx, DOUBLE_JUMP)?,
+            break_block: SoundData::new(ctx, BREAK_BLOCKS)?,
+            shoot: to_sounds(ctx, SHOOT)?,
+            land: SoundData::new(ctx, LAND)?,
             sources: vec![],
         })
     }
@@ -42,35 +40,37 @@ impl Sound {
         self.sources.retain(|source| source.playing());
     }
 
-    pub fn play_sound(&mut self, ctx: &mut Context, sound: SoundEffect) -> GameResult<()> {
+    pub fn play_sound(&mut self, ctx: &mut Context, sound: SoundEffect) {
         use self::SoundEffect::*;
-        match sound {
-            Jump => {
-                let source = get_random(ctx, &self.jump)?;
-                source.play()?;
-                assert!(source.playing());
-                self.sources.push(source);
-                println!("{:?}", self.sources);
-                Ok(())
-            }
+        let (sound, volume) = match sound {
+            Jump => (self.jump.clone(), 0.5),
+            Shoot => (get_random(&self.shoot), 0.3),
+            Land => (self.land.clone(), 0.2),
             _ => unimplemented!(),
-        }
+        };
+        self.play(ctx, sound, volume).expect("Couldn't play sound");
+    }
+
+    fn play(&mut self, ctx: &mut Context, sound: SoundData, volume: f32) -> GameResult<()> {
+        let mut source = Source::from_data(ctx, sound)?;
+        source.set_volume(volume);
+        source.play()?;
+        self.sources.push(source);
+        Ok(())
     }
 }
 
 #[derive(Debug)]
 pub enum SoundEffect {
     Jump,
+    DoubleJump,
     Land,
     Shoot,
     BreakBlock,
 }
 
-fn get_random(ctx: &mut Context, sounds: &[SoundData]) -> GameResult<Source> {
-    if let Some(sound) = rand::thread_rng().choose(&sounds) {
-        return Source::from_data(ctx, sound.clone());
-    }
-    Err(GameError::AudioError("Could not play sound".to_owned()))
+fn get_random(sounds: &[SoundData]) -> SoundData {
+    rand::thread_rng().choose(&sounds).unwrap().clone()
 }
 
 fn to_sounds<P: AsRef<path::Path>>(ctx: &mut Context, paths: &[P]) -> GameResult<Vec<SoundData>> {

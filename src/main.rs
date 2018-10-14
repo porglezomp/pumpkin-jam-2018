@@ -1,7 +1,6 @@
 use std::path;
 
 use ggez::{
-    audio::Source,
     conf::{WindowMode, WindowSetup},
     event,
     graphics::{self, Color, DrawParam, Point2, Vector2},

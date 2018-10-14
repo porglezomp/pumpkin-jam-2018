@@ -88,6 +88,7 @@ pub struct Player {
     pub cooldown: f32,
     pub alive: bool,
     pub grounded: bool,
+    pub frames_since_grounded: u8,
 }
 
 impl Player {
@@ -102,7 +103,8 @@ impl Player {
             health: PLAYER_MAX_HEALTH,
             cooldown: 0.0,
             alive: false,
-            grounded: false,
+            grounded: true,
+            frames_since_grounded: 0,
         }
     }
 
@@ -145,9 +147,11 @@ impl Player {
         if self.grounded && self.control_state.jump {
             self.acc.y = JUMP_POWER / crate::DT;
             self.grounded = false;
-            sounds
-                .play_sound(ctx, SoundEffect::Jump)
-                .expect("Something bad happened");
+            sounds.play_sound(ctx, SoundEffect::Jump);
+        }
+
+        if self.grounded && self.frames_since_grounded > 3 {
+            sounds.play_sound(ctx, SoundEffect::Land);
         }
 
         if self.control_state.shoot && self.cooldown <= 0.0 {
@@ -157,6 +161,7 @@ impl Player {
                 self.team,
             ));
             self.cooldown = 0.3;
+            sounds.play_sound(ctx, SoundEffect::Shoot);
         }
 
         self.acc.x += self.control_state.lr / crate::DT;
@@ -191,6 +196,12 @@ impl Player {
             collide::resolve_colliders_vert(next_rect, self.vel, &colliders);
         next_pos.y += res_disp_y;
         self.vel = res_vel_y;
+
+        self.frames_since_grounded = if self.grounded {
+            0
+        } else {
+            self.frames_since_grounded.saturating_add(1)
+        };
         // If the displacement was vertical that means we have been pushed up
         // out of the ground, which means we are probably grounded.
         self.grounded = res_disp_y > 0.0;
