@@ -7,6 +7,7 @@ use crate::draw;
 use crate::grid::{Grid, Tile};
 use crate::images::Images;
 use crate::player::{Player, Team};
+use crate::sound::{Sound, SoundEffect};
 
 const BULLET_WIDTH: f32 = 0.2;
 const BULLET_HEIGHT: f32 = 0.2;
@@ -40,6 +41,8 @@ impl Bullet {
 
     pub fn fixed_update<'a>(
         &mut self,
+        ctx: &mut Context,
+        sounds: &mut Sound,
         grids: &mut [Grid],
         players: &mut [Option<Player>],
         in_menu: bool,
@@ -64,10 +67,16 @@ impl Bullet {
             grid.overlapping_tiles(self.rect(), &mut tiles);
             for (tile, x, y) in tiles {
                 match tile {
-                    Tile::Solid(_) => {
+                    Tile::Solid(health) => {
                         grid.damage_tile(x, y);
                         grid.damage_tile(x, y);
                         self.is_alive = false;
+                        let sound_effect = match health {
+                            0 => SoundEffect::BreakBlock,
+                            1 | 2 => SoundEffect::DamageBlockMore,
+                            _ => SoundEffect::DamageBlock,
+                        };
+                        sounds.play_sound(ctx, sound_effect);
                     }
                     Tile::Start(_) => {
                         if let Some(player) = &mut players[self.team.0 as usize] {

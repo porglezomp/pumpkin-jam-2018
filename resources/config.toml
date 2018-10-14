@@ -19,7 +19,7 @@ second_jump_power = 16.0
 [grid]
 tile_max_health = 4
 falling_accel = -25.0
-death_threshold = 0.99
+death_threshold = 0.80
 no_spawn_threshold = 0.5
 gap = 0.5
 menu_num = 2

@@ -17,7 +17,7 @@ use crate::config::{GRID, MENU, PLAYER, TEAM};
 use crate::grid::{Grid, GridState, Module};
 use crate::images::Images;
 use crate::player::{Axis, Button, Controls, Player, Team};
-use crate::sound::Sound;
+use crate::sound::{Sound, SoundEffect};
 
 mod bullet;
 mod collide;
@@ -258,10 +258,10 @@ impl ggez::event::EventHandler for MainState {
                 } else {
                     0.0
                 };
-                self.grids[i].fixed_update(target);
+                self.grids[i].fixed_update(ctx, &mut self.sounds, target);
             } else {
                 let offset = self.grids[i - 1].world_offset.y + grid::GRID_HEIGHT as f32;
-                self.grids[i].fixed_update(offset);
+                self.grids[i].fixed_update(ctx, &mut self.sounds, offset);
             }
         }
 
@@ -312,7 +312,13 @@ impl ggez::event::EventHandler for MainState {
             }
 
             for bullet in &mut self.bullets {
-                bullet.fixed_update(&mut self.grids, &mut self.players, self.in_menu);
+                bullet.fixed_update(
+                    ctx,
+                    &mut self.sounds,
+                    &mut self.grids,
+                    &mut self.players,
+                    self.in_menu,
+                );
             }
             self.bullets.retain(|bullet| bullet.is_alive);
 
@@ -339,6 +345,8 @@ impl ggez::event::EventHandler for MainState {
                         .unwrap()
                         .clone(),
                 ));
+
+                self.sounds.play_sound(ctx, SoundEffect::GridFallOffscreen);
             } else {
                 self.grids.push(Grid::new_from_module(
                     grid::GRID_HEIGHT as f32 * 3.0,
@@ -347,6 +355,7 @@ impl ggez::event::EventHandler for MainState {
                         .unwrap()
                         .clone(),
                 ));
+                self.sounds.play_sound(ctx, SoundEffect::GridFallOffscreen);
             }
         }
 
