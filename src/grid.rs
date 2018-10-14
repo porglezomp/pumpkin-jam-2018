@@ -243,19 +243,21 @@ pub fn find_spawn_location(module: Module) -> Option<(GridCoord, GridCoord)> {
     rand::thread_rng().shuffle(&mut columns);
     for x in columns {
         for y in 0..(GRID_HEIGHT - 2) {
+            let mut good_location = true;
             for i in x - 1..=x + 1 {
-                let ground_tile = if let Tile::Solid(_) = module[y][i] {
-                    true
-                } else {
-                    false
-                };
+                let ground_tile = module[y][i] != Tile::Air;
                 let tile_above = module[y + 1][i] == Tile::Air;
                 let tile_two_above = module[y + 2][i] == Tile::Air;
                 if !(ground_tile && tile_above && tile_two_above) {
-                    break;
+                    good_location = false;
                 }
             }
-            return Some((x, y));
+
+            if good_location {
+                return Some((x, y));
+            } else {
+                continue;
+            }
         }
     }
     None

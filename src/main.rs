@@ -210,6 +210,10 @@ impl ggez::event::EventHandler for MainState {
                         {
                             continue;
                         }
+                        // Don't spawn above the screen.
+                        if self.grids[i].world_offset.y > draw::WORLD_HEIGHT {
+                            continue;
+                        }
                         if player.respawn(&self.grids[i]) {
                             break;
                         }
