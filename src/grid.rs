@@ -99,8 +99,25 @@ impl Grid {
         let mut batch = Batch::new(images.leaves.clone());
         for (j, row) in self.module.iter().enumerate() {
             for (i, tile) in row.iter().enumerate() {
+                let dest = Point2::new(TILE_SIZE * i as f32, TILE_SIZE * j as f32);
                 match *tile {
                     Air => continue,
+                    Tile::Start => batch.add(
+                        0,
+                        DrawParam {
+                            dest,
+                            color: Some(Color::new(0.0, 1.0, 1.0, 1.0)),
+                            ..Default::default()
+                        },
+                    ),
+                    Tile::Leave => batch.add(
+                        0,
+                        DrawParam {
+                            dest,
+                            color: Some(Color::new(1.0, 0.0, 1.0, 1.0)),
+                            ..Default::default()
+                        },
+                    ),
                     Solid(health) => {
                         // Tile is dead, don't need to render
                         if health == 0 {
@@ -109,7 +126,7 @@ impl Grid {
                         batch.add(
                             0,
                             DrawParam {
-                                dest: Point2::new(TILE_SIZE * i as f32, TILE_SIZE * j as f32),
+                                dest,
                                 color: Some(color_lerp(
                                     BROKEN,
                                     HEALTHY,
@@ -144,7 +161,7 @@ impl Grid {
                     self.module[y][x] = Tile::Air;
                 }
             }
-            Air => return,
+            Leave | Start | Air => (),
         }
     }
 
@@ -202,7 +219,7 @@ impl Grid {
     pub fn to_world_collider(&self, tile: (Tile, usize, usize)) -> WorldRect {
         use self::Tile::*;
         match tile.0 {
-            Solid(_) => {
+            Start | Leave | Solid(_) => {
                 let tile_point = self.to_world_coords((tile.1, tile.2));
                 math::rect_from_point(tile_point, TILE_SIZE, TILE_SIZE)
             }
@@ -283,6 +300,8 @@ fn text_to_row(row: &str) -> Result<[Tile; GRID_WIDTH], String> {
     let mut tiles = [Tile::Air; GRID_WIDTH];
     for (i, character) in row.trim_right().chars().enumerate() {
         match character {
+            '!' => tiles[i] = Tile::Start,
+            '?' => tiles[i] = Tile::Leave,
             '#' => tiles[i] = Tile::Solid(TILE_MAX_HEALTH),
             ' ' => tiles[i] = Tile::Air,
             _ => {
@@ -300,6 +319,8 @@ fn text_to_row(row: &str) -> Result<[Tile; GRID_WIDTH], String> {
 pub enum Tile {
     Air,
     Solid(u8),
+    Start,
+    Leave,
 }
 
 pub const HEALTHY: Color = Color {

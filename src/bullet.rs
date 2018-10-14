@@ -41,7 +41,8 @@ impl Bullet {
     pub fn fixed_update<'a>(
         &mut self,
         grids: &mut [Grid],
-        players: impl Iterator<Item = &'a mut Player>,
+        players: &mut [Option<Player>],
+        in_menu: bool,
     ) {
         self.pos += crate::DT * self.vel;
 
@@ -49,10 +50,12 @@ impl Bullet {
             self.is_alive = false;
         }
 
-        for player in players {
-            if self.rect().overlaps(&player.rect()) && self.team != player.team {
-                player.damage();
-                self.is_alive = false;
+        for player in players.iter_mut() {
+            if let Some(player) = player {
+                if self.rect().overlaps(&player.rect()) && self.team != player.team {
+                    player.damage();
+                    self.is_alive = false;
+                }
             }
         }
 
@@ -64,6 +67,20 @@ impl Bullet {
                     Tile::Solid(_) => {
                         grid.damage_tile(x, y);
                         grid.damage_tile(x, y);
+                        self.is_alive = false;
+                    }
+                    Tile::Start => {
+                        if let Some(player) = &mut players[self.team.0 as usize] {
+                            if in_menu {
+                                player.ready = !player.ready;
+                            }
+                        }
+                        self.is_alive = false;
+                    }
+                    Tile::Leave => {
+                        if in_menu {
+                            players[self.team.0 as usize] = None;
+                        }
                         self.is_alive = false;
                     }
                     _ => (),

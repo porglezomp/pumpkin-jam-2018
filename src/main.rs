@@ -72,12 +72,9 @@ impl MainState {
         let modules =
             grid::parse_modules_file(ctx, MODULES_PATH).expect("Should load the modules file");
         let grids = vec![
-            Grid::new_from_module((grid::GRID_HEIGHT * 0) as f32, modules[2].clone()),
-            Grid::new_from_module((grid::GRID_HEIGHT * 1) as f32, modules[2].clone()),
-            Grid::new_from_module(
-                (grid::GRID_HEIGHT * 2) as f32,
-                rand::thread_rng().choose(&modules).unwrap().clone(),
-            ),
+            Grid::new_from_module((grid::GRID_HEIGHT * 0) as f32, modules[0].clone()),
+            Grid::new_from_module((grid::GRID_HEIGHT * 1) as f32, modules[0].clone()),
+            Grid::new_from_module((grid::GRID_HEIGHT * 2) as f32, modules[0].clone()),
         ];
 
         let images = images::Images::new(ctx)?;
@@ -177,6 +174,22 @@ impl ggez::event::EventHandler for MainState {
             return Ok(());
         }
 
+        if self.in_menu {
+            let mut ready = true;
+            let mut player_count = 0;
+            for player in somes_mut(&mut self.players) {
+                ready &= player.ready;
+                player_count += 1;
+            }
+            if ready && player_count >= 2 {
+                self.in_menu = false;
+            }
+        }
+
+        for grid in &mut self.grids {
+            grid.fixed_update();
+        }
+
         for player in somes_mut(&mut self.players) {
             player.update(&mut self.bullets);
         }
@@ -197,26 +210,21 @@ impl ggez::event::EventHandler for MainState {
                         {
                             continue;
                         }
-                        let result = player.respawn(&self.grids[i]);
-                        if result {
+                        if player.respawn(&self.grids[i]) {
                             break;
                         }
                     }
 
                     if !player.alive {
-                        println!("cant find a spot");
+                        println!("Player {:?} cant find a spot", player.team);
                     }
                 }
             }
 
             for bullet in &mut self.bullets {
-                bullet.fixed_update(&mut self.grids, somes_mut(&mut self.players));
+                bullet.fixed_update(&mut self.grids, &mut self.players, self.in_menu);
             }
-
             self.bullets.retain(|bullet| bullet.is_alive);
-            for grid in &mut self.grids {
-                grid.fixed_update();
-            }
 
             if thread_rng().gen_bool(0.2) {
                 let grid_id = *thread_rng()
@@ -272,24 +280,6 @@ impl ggez::event::EventHandler for MainState {
         for grid in &mut self.grids {
             grid.draw(ctx, &self.images)?;
         }
-
-        draw::draw_sprite(
-            ctx,
-            &self.images.start_flag,
-            DrawParam {
-                dest: Point2::new(8.0, 12.0),
-                ..Default::default()
-            },
-        )?;
-
-        draw::draw_sprite(
-            ctx,
-            &self.images.leave_flag,
-            DrawParam {
-                dest: Point2::new(24.0, 12.0),
-                ..Default::default()
-            },
-        )?;
 
         for player in somes_mut(&mut self.players) {
             player.draw(ctx, &self.images)?;

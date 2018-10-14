@@ -89,6 +89,7 @@ pub struct Player {
     pub cooldown: f32,
     pub alive: bool,
     pub grounded: bool,
+    pub ready: bool,
 }
 
 impl Player {
@@ -104,6 +105,7 @@ impl Player {
             cooldown: 0.0,
             alive: false,
             grounded: false,
+            ready: false,
         }
     }
 
