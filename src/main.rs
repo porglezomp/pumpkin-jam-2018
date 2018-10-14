@@ -296,28 +296,46 @@ impl ggez::event::EventHandler for MainState {
             bullet.draw(ctx, &self.images)?;
         }
 
-        let menu_positions = [
-            Point2::new(draw::WORLD_WIDTH - 9.0, 1.0),
-            Point2::new(1.0, 1.0),
-            Point2::new(1.0, draw::WORLD_HEIGHT - 3.0),
-            Point2::new(draw::WORLD_WIDTH - 9.0, draw::WORLD_HEIGHT - 3.0),
+        struct MenuInfo {
+            join_pos: Point2,
+            heart_pos: Point2,
+        }
+
+        let menu_info = [
+            MenuInfo {
+                join_pos: Point2::new(draw::WORLD_WIDTH - 9.0, 1.0),
+                heart_pos: Point2::new(draw::WORLD_WIDTH - 3.0, 1.0),
+            },
+            MenuInfo {
+                join_pos: Point2::new(1.0, 1.0),
+                heart_pos: Point2::new(1.0, 1.0),
+            },
+            MenuInfo {
+                join_pos: Point2::new(1.0, draw::WORLD_HEIGHT - 3.0),
+                heart_pos: Point2::new(1.0, draw::WORLD_HEIGHT - 2.0),
+            },
+            MenuInfo {
+                join_pos: Point2::new(draw::WORLD_WIDTH - 9.0, draw::WORLD_HEIGHT - 3.0),
+                heart_pos: Point2::new(draw::WORLD_WIDTH - 3.0, draw::WORLD_HEIGHT - 2.0),
+            },
         ];
 
         let mut hearts = draw::Batch::atlas(self.images.heart.clone(), 2, 1);
         let a = if time % 1.5 < 0.8 { 1.0 } else { 0.25 };
-        for ((player, &dest), &color) in self
+        for ((player, info), &color) in self
             .players
             .iter()
-            .zip(&menu_positions)
+            .zip(&menu_info)
             .zip(&player::TEAM_COLORS)
         {
             if let Some(player) = player {
                 for heart in 0..player::PLAYER_MAX_HEALTH {
                     let sprite = if player.health > heart { 0 } else { 1 };
+                    let offset = heart as f32 * Vector2::new(0.7, 0.0);
                     hearts.add(
                         sprite,
                         DrawParam {
-                            dest: dest + heart as f32 * Vector2::new(1.0, 0.0),
+                            dest: info.heart_pos + offset,
                             color: Some(color),
                             ..Default::default()
                         },
@@ -329,7 +347,7 @@ impl ggez::event::EventHandler for MainState {
                         ctx,
                         &self.images.join,
                         DrawParam {
-                            dest,
+                            dest: info.join_pos,
                             color: Some(Color { a, ..color }),
                             ..Default::default()
                         },
