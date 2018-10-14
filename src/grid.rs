@@ -92,8 +92,8 @@ impl Grid {
                         batch.add(DrawParam {
                             dest: Point2::new(TILE_SIZE * i as f32, TILE_SIZE * j as f32),
                             color: Some(color_lerp(
-                                RED,
-                                WHITE,
+                                BROKEN,
+                                HEALTHY,
                                 (health - 1) as f32 / (TILE_MAX_HEALTH - 1) as f32,
                             )),
                             ..Default::default()
@@ -232,17 +232,17 @@ pub enum Tile {
     Solid(usize),
 }
 
-pub const WHITE: Color = Color {
-    r: 1.0,
-    g: 1.0,
-    b: 1.0,
+pub const HEALTHY: Color = Color {
+    r: 0.8,
+    g: 0.5,
+    b: 0.2,
     a: 1.0,
 };
 
-pub const RED: Color = Color {
-    r: 1.0,
-    g: 0.0,
-    b: 0.0,
+pub const BROKEN: Color = Color {
+    r: 0.3,
+    g: 0.2,
+    b: 0.2,
     a: 1.0,
 };
 

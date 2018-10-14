@@ -1,9 +1,9 @@
 use std::path;
 
 use ggez::{
-    conf::{FullscreenType, WindowMode, WindowSetup},
+    conf::{WindowMode, WindowSetup},
     event,
-    graphics::{self, Point2},
+    graphics::{self, Color, DrawParam, Point2},
     timer, Context, ContextBuilder, GameResult,
 };
 use rand::{thread_rng, Rng};
@@ -27,7 +27,8 @@ fn joycon_controls(id: i32) -> Controls {
     }
 }
 
-const _WASD_CONTROLS: Controls = Controls {
+#[allow(unused)]
+const WASD_CONTROLS: Controls = Controls {
     lr: Axis::Buttons(
         Button::Keyboard(event::Keycode::A),
         Button::Keyboard(event::Keycode::D),
@@ -36,7 +37,8 @@ const _WASD_CONTROLS: Controls = Controls {
     shoot: Button::Keyboard(event::Keycode::Tab),
 };
 
-const _ARROW_CONTROLS: Controls = Controls {
+#[allow(unused)]
+const ARROW_CONTROLS: Controls = Controls {
     lr: Axis::Buttons(
         Button::Keyboard(event::Keycode::Left),
         Button::Keyboard(event::Keycode::Right),
@@ -220,6 +222,8 @@ impl ggez::event::EventHandler for MainState {
             return Ok(());
         }
 
+        let time = timer::duration_to_f64(timer::get_time_since_start(ctx));
+        graphics::set_background_color(ctx, Color::new(0.0, 0.0, 0.0, 1.0));
         graphics::clear(ctx);
 
         for grid in &mut self.grids {
@@ -235,7 +239,46 @@ impl ggez::event::EventHandler for MainState {
         }
 
         if self.in_menu {
-            draw::draw_sprite(ctx, &self.images.join, Point2::new(1.0, 1.0))?;
+            let alpha = if time % 1.5 < 0.8 { 1.0 } else { 0.25 };
+            draw::draw_sprite(
+                ctx,
+                &self.images.join,
+                DrawParam {
+                    dest: Point2::new(draw::WORLD_WIDTH - 9.0, 2.0),
+                    color: Some(Color::new(0.25, 0.7, 1.0, alpha)),
+                    ..Default::default()
+                },
+            )?;
+
+            draw::draw_sprite(
+                ctx,
+                &self.images.join,
+                DrawParam {
+                    dest: Point2::new(1.0, 2.0),
+                    color: Some(Color::new(0.8, 0.2, 0.2, alpha)),
+                    ..Default::default()
+                },
+            )?;
+
+            draw::draw_sprite(
+                ctx,
+                &self.images.join,
+                DrawParam {
+                    dest: Point2::new(1.0, draw::WORLD_HEIGHT - 2.0),
+                    color: Some(Color::new(0.3, 1.0, 0.5, alpha)),
+                    ..Default::default()
+                },
+            )?;
+
+            draw::draw_sprite(
+                ctx,
+                &self.images.join,
+                DrawParam {
+                    dest: Point2::new(draw::WORLD_WIDTH - 9.0, draw::WORLD_HEIGHT - 2.0),
+                    color: Some(Color::new(1.0, 0.9, 0.25, alpha)),
+                    ..Default::default()
+                },
+            )?;
         }
 
         graphics::present(ctx);

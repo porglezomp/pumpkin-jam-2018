@@ -43,12 +43,11 @@ impl Batch {
     }
 }
 
-pub fn draw_sprite(ctx: &mut Context, image: &Image, dest: Point2) -> GameResult<()> {
+pub fn draw_sprite(ctx: &mut Context, image: &Image, param: DrawParam) -> GameResult<()> {
     let param = DrawParam {
-        dest,
         offset: Point2::new(0.0, 0.5),
         scale: Point2::new(PIX / SCALE_X, -PIX / SCALE_Y),
-        ..Default::default()
+        ..param
     };
     draw_ex(ctx, image, param)
 }
