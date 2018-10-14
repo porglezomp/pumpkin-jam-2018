@@ -200,6 +200,7 @@ impl ggez::event::EventHandler for MainState {
             let mut player_count = 0;
             for player in somes_mut(&mut self.players) {
                 ready &= player.ready;
+                player.lives = PLAYER.max_lives;
                 player_count += 1;
             }
             if ready && player_count >= 2 {
@@ -211,6 +212,7 @@ impl ggez::event::EventHandler for MainState {
                     }
                 }
                 for player in somes_mut(&mut self.players) {
+                    player.ready = false;
                     player.alive = false;
                     player.lives = PLAYER.max_lives;
                 }
@@ -255,7 +257,7 @@ impl ggez::event::EventHandler for MainState {
                 player.fixed_update(&self.grids);
 
                 // If the player is dead attempt to respawn them
-                if !player.alive && self.menu_phase != MenuPhase::DropMenu {
+                if !player.alive && player.lives > 0 && self.menu_phase != MenuPhase::DropMenu {
                     let mut indicies: Vec<_> = (0..self.grids.len()).collect();
                     rand::thread_rng().shuffle(&mut indicies);
                     for i in indicies {
@@ -277,6 +279,18 @@ impl ggez::event::EventHandler for MainState {
                         println!("Player {:?} cant find a spot", player.team);
                     }
                 }
+            }
+
+            let mut alive = 0;
+            for player in somes_mut(&mut self.players) {
+                if player.lives > 0 {
+                    alive += 1;
+                }
+            }
+
+            if alive <= 1 {
+                self.in_menu = true;
+                self.menu_phase = MenuPhase::InMenu;
             }
 
             for bullet in &mut self.bullets {
