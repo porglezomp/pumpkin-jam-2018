@@ -235,7 +235,6 @@ impl Player {
 
     pub fn damage(&mut self) {
         self.health = self.health.saturating_sub(1);
-        println!("{:?} has {} health", self.team, self.health);
     }
 
     pub fn rect(&self) -> Rect {
