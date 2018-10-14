@@ -5,6 +5,7 @@ use ggez::{
 };
 
 use crate::bullet::Bullet;
+use crate::sound::{Sound, SoundEffect};
 
 use crate::collide;
 use crate::draw;
@@ -134,7 +135,7 @@ impl Player {
         true
     }
 
-    pub fn update(&mut self, bullets: &mut Vec<Bullet>) {
+    pub fn update(&mut self, ctx: &mut Context, bullets: &mut Vec<Bullet>, sounds: &mut Sound) {
         if !self.alive {
             return;
         }
@@ -144,6 +145,9 @@ impl Player {
         if self.grounded && self.control_state.jump {
             self.acc.y = JUMP_POWER / crate::DT;
             self.grounded = false;
+            sounds
+                .play_sound(ctx, SoundEffect::Jump)
+                .expect("Something bad happened");
         }
 
         if self.control_state.shoot && self.cooldown <= 0.0 {

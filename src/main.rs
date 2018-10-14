@@ -1,6 +1,7 @@
 use std::path;
 
 use ggez::{
+    audio::Source,
     conf::{WindowMode, WindowSetup},
     event,
     graphics::{self, Color, DrawParam, Point2, Vector2},
@@ -12,6 +13,7 @@ use crate::bullet::Bullet;
 use crate::grid::{Grid, GridState, Module};
 use crate::images::Images;
 use crate::player::{Axis, Button, Controls, Player, Team};
+use crate::sound::Sound;
 
 mod bullet;
 mod collide;
@@ -20,6 +22,7 @@ mod grid;
 mod images;
 mod math;
 mod player;
+mod sound;
 
 fn joycon_controls(id: i32) -> Controls {
     Controls {
@@ -59,6 +62,7 @@ struct MainState {
     players: [Option<Player>; 4],
     bullets: Vec<Bullet>,
     images: Images,
+    sounds: Sound,
 }
 
 fn somes_mut<'a, T: 'a>(
@@ -81,6 +85,7 @@ impl MainState {
         ];
 
         let images = images::Images::new(ctx)?;
+        let sounds = sound::Sound::new(ctx)?;
 
         Ok(MainState {
             focused: true,
@@ -90,6 +95,7 @@ impl MainState {
             players: [None, None, None, None],
             bullets: Vec::with_capacity(20),
             images,
+            sounds,
         })
     }
 
@@ -178,7 +184,7 @@ impl ggez::event::EventHandler for MainState {
         }
 
         for player in somes_mut(&mut self.players) {
-            player.update(&mut self.bullets);
+            player.update(ctx, &mut self.bullets, &mut self.sounds);
         }
 
         while timer::check_update_time(ctx, DESIRED_FPS) {
@@ -256,7 +262,7 @@ impl ggez::event::EventHandler for MainState {
                 right.first_mut().unwrap().update(left.last());
             }
         }
-
+        self.sounds.update();
         timer::yield_now();
         Ok(())
     }
