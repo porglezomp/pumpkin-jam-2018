@@ -214,30 +214,8 @@ impl ggez::event::EventHandler for MainState {
             }
 
             self.bullets.retain(|bullet| bullet.is_alive);
-
-            for i in 0..self.grids.len() {
-                if i == 0 {
-                    self.grids[0].update(None);
-
-                    // If the bottom grid is dead, make it fall, and a new grid
-                    if self.grids[0].state == GridState::Dead {
-                        self.grids.push(Grid::new_from_module(
-                            grid::GRID_HEIGHT as f32 * 3.0,
-                            rand::thread_rng().choose(&self.modules).unwrap().clone(),
-                        ));
-                        self.grids[0].fall(-1.0 * (grid::GRID_HEIGHT as f32));
-                    }
-
-                    // When the bottom gird is offscreen, remove it
-                    if let GridState::DeadFalling(goal_height) = self.grids[0].state {
-                        if (goal_height - self.grids[0].height()).abs() < 0.1 {
-                            self.grids.remove(0);
-                        }
-                    }
-                } else {
-                    let (left, right) = self.grids.split_at_mut(i);
-                    right.first_mut().unwrap().update(left.last());
-                }
+            for grid in &mut self.grids {
+                grid.fixed_update();
             }
 
             if thread_rng().gen_bool(0.2) {
@@ -250,6 +228,31 @@ impl ggez::event::EventHandler for MainState {
                     thread_rng().gen_range(0, grid::GRID_WIDTH),
                     thread_rng().gen_range(0, grid::GRID_HEIGHT),
                 );
+            }
+        }
+
+        for i in 0..self.grids.len() {
+            if i == 0 {
+                self.grids[0].update(None);
+
+                // If the bottom grid is dead, make it fall, and a new grid
+                if self.grids[0].state == GridState::Dead {
+                    self.grids.push(Grid::new_from_module(
+                        grid::GRID_HEIGHT as f32 * 3.0,
+                        rand::thread_rng().choose(&self.modules).unwrap().clone(),
+                    ));
+                    self.grids[0].fall(-1.0 * (grid::GRID_HEIGHT as f32));
+                }
+
+                // When the bottom gird is offscreen, remove it
+                if let GridState::DeadFalling(goal_height) = self.grids[0].state {
+                    if self.grids[0].height() - goal_height < 0.1 {
+                        self.grids.remove(0);
+                    }
+                }
+            } else {
+                let (left, right) = self.grids.split_at_mut(i);
+                right.first_mut().unwrap().update(left.last());
             }
         }
 
