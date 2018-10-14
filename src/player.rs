@@ -10,7 +10,7 @@ use crate::draw;
 use crate::grid;
 
 pub const PLAYER_MAX_HEALTH: u8 = 3;
-
+pub const CHAR_HEIGHT: f32 = 1.8;
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct Team(pub u8);
 
@@ -105,6 +105,8 @@ impl Player {
         // make the player spawns on top of the center of the block
         let offset = Vector2::new(grid::TILE_SIZE as f32 / 2.0, grid::TILE_SIZE as f32);
         self.pos = grid.to_world_coords(grid_coords.unwrap()) + offset;
+        self.vel = Vector2::new(0.0, 0.0);
+        self.acc = Vector2::new(0.0, 0.0);
         self.alive = true;
         self.health = PLAYER_MAX_HEALTH;
         true
@@ -117,10 +119,11 @@ impl Player {
 
         self.controls();
 
-        let grounded = self.pos.y <= 0.0;
+        let grounded = true;
+        // let grounded = self.pos.y <= 0.0;
 
         if grounded && self.control_state.jump {
-            self.acc.y = 13.0 / crate::DT;
+            self.acc.y = 0.1 / crate::DT;
         }
 
         if self.control_state.shoot && self.cooldown <= 0.0 {
@@ -143,12 +146,12 @@ impl Player {
 
         self.acc.x += self.control_state.lr / crate::DT;
 
-        if self.health == 0 {
+        if self.health == 0 || self.pos.y < 0.0 {
             self.alive = false;
         }
     }
 
-    pub fn fixed_update(&mut self) {
+    pub fn fixed_update(&mut self, grids: &[grid::Grid]) {
         if !self.alive {
             return;
         }
@@ -157,16 +160,53 @@ impl Player {
         self.vel += crate::DT * self.acc;
         self.vel.x *= 0.95;
         self.vel.y *= 0.995;
-        self.pos += crate::DT * self.vel;
 
-        let grounded = self.pos.y <= 0.0;
+        let mut colliders = Vec::with_capacity(8);
+        let mut tiles = Vec::with_capacity(6);
+        let mut next_pos = self.pos;
 
-        // Ground
-        if grounded {
-            self.pos.y = 0.0;
-            self.vel.y = self.vel.y.max(0.0);
+        next_pos.y += self.vel.y * crate::DT;
+
+        colliders.clear();
+        for grid in grids {
+            tiles.clear();
+            grid.overlapping_tiles(
+                grid::rect_from_point(next_pos, 1.0, CHAR_HEIGHT),
+                &mut tiles,
+            );
+            for &tile in &tiles {
+                colliders.push(grid.to_world_collider(tile))
+            }
         }
 
+        for &collider in &colliders {
+            let next_rect = grid::rect_from_point(next_pos, 1.0, CHAR_HEIGHT);
+            let (res_disp, res_vel) = grid::collision_resolve_vert(next_rect, self.vel, collider);
+            next_pos.y += res_disp;
+            self.vel = res_vel;
+        }
+
+        next_pos.x += crate::DT * self.vel.x;
+
+        for grid in grids {
+            tiles.clear();
+            grid.overlapping_tiles(
+                grid::rect_from_point(next_pos, 1.0, CHAR_HEIGHT),
+                &mut tiles,
+            );
+            for &tile in &tiles {
+                colliders.push(grid.to_world_collider(tile))
+            }
+        }
+
+        for &collider in &colliders {
+            let next_rect = grid::rect_from_point(next_pos, 1.0, CHAR_HEIGHT);
+            let (res_disp, res_vel) = grid::collision_resolve_horiz(next_rect, self.vel, collider);
+            next_pos.x += res_disp;
+            self.vel = res_vel;
+        }
+
+        self.pos = next_pos;
         self.acc = Vector2::new(0.0, -20.0);
     }
 

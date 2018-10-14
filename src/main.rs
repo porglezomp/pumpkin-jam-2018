@@ -47,18 +47,18 @@ impl MainState {
                     shoot: Button::Keyboard(event::Keycode::Space),
                 },
             )?,
-            Player::new(
-                ctx,
-                Team(1),
-                Controls {
-                    lr: Axis::Buttons(
-                        Button::Keyboard(event::Keycode::A),
-                        Button::Keyboard(event::Keycode::D),
-                    ),
-                    jump: Button::Keyboard(event::Keycode::W),
-                    shoot: Button::Keyboard(event::Keycode::Tab),
-                },
-            )?,
+            // Player::new(
+            //     ctx,
+            //     Team(1),
+            //     Controls {
+            //         lr: Axis::Buttons(
+            //             Button::Keyboard(event::Keycode::A),
+            //             Button::Keyboard(event::Keycode::D),
+            //         ),
+            //         jump: Button::Keyboard(event::Keycode::W),
+            //         shoot: Button::Keyboard(event::Keycode::Tab),
+            //     },
+            // )?,
         ];
 
         let modules = grid::parse_modules_file(&path::Path::new(MODULES_PATH)).unwrap();
@@ -134,7 +134,7 @@ impl ggez::event::EventHandler for MainState {
         while timer::check_update_time(ctx, DESIRED_FPS) {
             // fixed update
             for player in &mut self.players {
-                player.fixed_update();
+                player.fixed_update(&self.grids);
 
                 if !player.alive {
                     let mut indicies: Vec<_> = (0..self.grids.len()).collect();
