@@ -19,6 +19,7 @@ pub const PLAYER_WIDTH: f32 = 0.8;
 pub const SHOOT_OFFSET_X: f32 = PLAYER_WIDTH / 1.5;
 pub const SHOOT_OFFSET_Y: f32 = PLAYER_HEIGHT / 1.5;
 pub const JUMP_POWER: f32 = 16.0;
+pub const SECOND_JUMP_POWER: f32 = 16.0;
 pub const TEAM_COLORS: [Color; 4] = [
     Color {
         r: 0.25,
@@ -71,7 +72,9 @@ pub struct Controls {
 #[derive(Copy, Clone, Debug, Default)]
 pub struct ControlState {
     pub lr: f32,
-    pub jump: bool,
+    pub jump: bool,            // Updated every jump event (edge up and edge down)
+    pub this_jump_frame: bool, // Updated every frame
+    pub last_jump_frame: bool, // Updated every frame
     pub shoot: bool,
     pub l_pressed: bool,
     pub r_pressed: bool,
@@ -91,6 +94,7 @@ pub struct Player {
     pub alive: bool,
     pub grounded: bool,
     pub frames_since_grounded: u8,
+    jump: JumpState,
     pub ready: bool,
 }
 
@@ -109,6 +113,7 @@ impl Player {
             frames_since_grounded: 0,
             grounded: true,
             ready: false,
+            jump: JumpState::Double,
         }
     }
 
@@ -146,16 +151,41 @@ impl Player {
             return;
         }
 
+        self.control_state.last_jump_frame = self.control_state.this_jump_frame;
+        self.control_state.this_jump_frame = self.control_state.jump;
         self.controls();
 
-        if self.grounded && self.control_state.jump {
-            self.acc.y = JUMP_POWER / crate::DT;
-            self.grounded = false;
-            sounds.play_sound(ctx, SoundEffect::Jump);
+        use self::JumpState::*;
+        // Want to jump (rising jump edge)
+        if !self.control_state.last_jump_frame && self.control_state.this_jump_frame {
+            self.jump = match self.jump {
+                Double => {
+                    self.acc.y = JUMP_POWER / crate::DT;
+                    self.grounded = false;
+                    sounds.play_sound(ctx, SoundEffect::Jump);
+                    Single
+                }
+                Single => {
+                    self.acc.y = SECOND_JUMP_POWER / crate::DT;
+                    self.grounded = false;
+                    sounds.play_sound(ctx, SoundEffect::SecondJump);
+                    None
+                }
+                None => None,
+            }
         }
 
+        // Transition from air to grounded
         if self.grounded && self.frames_since_grounded > 3 {
+            self.jump = JumpState::Double;
             sounds.play_sound(ctx, SoundEffect::Land);
+        }
+
+        // Transition from grounded to air
+        if !self.grounded && self.frames_since_grounded > 3 {
+            if self.jump == JumpState::Double {
+                self.jump = JumpState::Single;
+            }
         }
 
         if self.control_state.shoot && self.cooldown <= 0.0 {
@@ -262,4 +292,11 @@ impl Player {
             h: PLAYER_HEIGHT,
         }
     }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+enum JumpState {
+    Double,
+    Single,
+    None,
 }
