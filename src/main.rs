@@ -256,6 +256,24 @@ impl ggez::event::EventHandler for MainState {
             grid.draw(ctx, &self.images)?;
         }
 
+        draw::draw_sprite(
+            ctx,
+            &self.images.start_flag,
+            DrawParam {
+                dest: Point2::new(8.0, 12.0),
+                ..Default::default()
+            },
+        )?;
+
+        draw::draw_sprite(
+            ctx,
+            &self.images.leave_flag,
+            DrawParam {
+                dest: Point2::new(24.0, 12.0),
+                ..Default::default()
+            },
+        )?;
+
         for player in somes_mut(&mut self.players) {
             player.draw(ctx, &self.images)?;
         }
