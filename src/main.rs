@@ -3,7 +3,7 @@ use std::path;
 use ggez::{
     conf::{WindowMode, WindowSetup},
     event,
-    graphics::{self, Color, DrawParam, Point2},
+    graphics::{self, Color, DrawParam, Point2, Vector2},
     timer, Context, ContextBuilder, GameResult,
 };
 use rand::{thread_rng, Rng};
@@ -296,21 +296,35 @@ impl ggez::event::EventHandler for MainState {
             bullet.draw(ctx, &self.images)?;
         }
 
-        if self.in_menu {
-            let menu_positions = [
-                Point2::new(draw::WORLD_WIDTH - 9.0, 1.0),
-                Point2::new(1.0, 1.0),
-                Point2::new(1.0, draw::WORLD_HEIGHT - 3.0),
-                Point2::new(draw::WORLD_WIDTH - 9.0, draw::WORLD_HEIGHT - 3.0),
-            ];
-            let a = if time % 1.5 < 0.8 { 1.0 } else { 0.25 };
-            for ((player, &dest), &color) in self
-                .players
-                .iter()
-                .zip(&menu_positions)
-                .zip(&player::TEAM_COLORS)
-            {
-                if player.is_none() {
+        let menu_positions = [
+            Point2::new(draw::WORLD_WIDTH - 9.0, 1.0),
+            Point2::new(1.0, 1.0),
+            Point2::new(1.0, draw::WORLD_HEIGHT - 3.0),
+            Point2::new(draw::WORLD_WIDTH - 9.0, draw::WORLD_HEIGHT - 3.0),
+        ];
+
+        let mut hearts = draw::Batch::atlas(self.images.heart.clone(), 2, 1);
+        let a = if time % 1.5 < 0.8 { 1.0 } else { 0.25 };
+        for ((player, &dest), &color) in self
+            .players
+            .iter()
+            .zip(&menu_positions)
+            .zip(&player::TEAM_COLORS)
+        {
+            if let Some(player) = player {
+                for heart in 0..player::PLAYER_MAX_HEALTH {
+                    let sprite = if player.health > heart { 0 } else { 1 };
+                    hearts.add(
+                        sprite,
+                        DrawParam {
+                            dest: dest + heart as f32 * Vector2::new(1.0, 0.0),
+                            color: Some(color),
+                            ..Default::default()
+                        },
+                    );
+                }
+            } else {
+                if self.in_menu {
                     draw::draw_sprite(
                         ctx,
                         &self.images.join,
@@ -323,6 +337,7 @@ impl ggez::event::EventHandler for MainState {
                 }
             }
         }
+        hearts.draw(ctx, Default::default())?;
 
         graphics::present(ctx);
         Ok(())
