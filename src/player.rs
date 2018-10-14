@@ -190,16 +190,14 @@ impl Player {
             }
         }
 
-        for &collider in &colliders {
-            let next_rect = math::rect_from_point(next_pos, PLAYER_WIDTH, PLAYER_HEIGHT);
-            let (res_disp, res_vel) =
-                collide::collision_resolve_vert(next_rect, self.vel, collider);
-            next_pos.y += res_disp;
-            self.vel = res_vel;
-            // If the displacement was vertical that means we have been pushed up
-            // out of the ground, which means we are probably grounded.
-            self.grounded = self.grounded || res_disp > 0.0;
-        }
+        let next_rect = math::rect_from_point(next_pos, PLAYER_WIDTH, PLAYER_HEIGHT);
+        let (res_disp_y, res_vel_y) =
+            collide::resolve_colliders_vert(next_rect, self.vel, &colliders);
+        next_pos.y += res_disp_y;
+        self.vel = res_vel_y;
+        // If the displacement was vertical that means we have been pushed up
+        // out of the ground, which means we are probably grounded.
+        self.grounded = self.grounded || res_disp_y > 0.0;
 
         next_pos.x += crate::DT * self.vel.x;
 
@@ -214,13 +212,11 @@ impl Player {
             }
         }
 
-        for &collider in &colliders {
-            let next_rect = math::rect_from_point(next_pos, PLAYER_WIDTH, PLAYER_HEIGHT);
-            let (res_disp, res_vel) =
-                collide::collision_resolve_horiz(next_rect, self.vel, collider);
-            next_pos.x += res_disp;
-            self.vel = res_vel;
-        }
+        let next_rect = math::rect_from_point(next_pos, PLAYER_WIDTH, PLAYER_HEIGHT);
+        let (res_disp_x, res_vel_x) =
+            collide::resolve_colliders_horiz(next_rect, self.vel, &colliders);
+        next_pos.x += res_disp_x;
+        self.vel = res_vel_x;
 
         self.pos = next_pos;
 
