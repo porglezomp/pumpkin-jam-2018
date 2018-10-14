@@ -14,9 +14,11 @@ use crate::images::Images;
 use crate::player::{Axis, Button, Controls, Player, Team};
 
 mod bullet;
+mod collide;
 mod draw;
 mod grid;
 mod images;
+mod math;
 mod player;
 
 fn joycon_controls(id: i32) -> Controls {

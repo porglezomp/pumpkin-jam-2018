@@ -10,14 +10,14 @@ use ggez::{
 use rand;
 use rand::Rng;
 
+use crate::collide::WorldRect;
 use crate::draw::{self, Batch, WorldCoord};
+use crate::math;
 use crate::Images;
 
-pub type GridCoord = usize;
-pub type GridPoint = Point2;
-/// a point in Grid Space
 pub type Module = [[Tile; GRID_WIDTH]; GRID_HEIGHT];
-pub type WorldRect = Rect;
+pub type GridCoord = usize;
+
 pub const GRID_WIDTH: GridCoord = 32;
 pub const GRID_HEIGHT: GridCoord = 8;
 pub const TILE_SIZE: WorldCoord = 1.0f32;
@@ -143,10 +143,6 @@ impl Grid {
         self.world_offset + GRID_TO_WORLD * Vector2::new(grid_coords.0 as f32, grid_coords.1 as f32)
     }
 
-    pub fn to_grid_coords(&self, world_coords: Point2) -> GridPoint {
-        GridPoint::origin() + ((world_coords - self.world_offset) * (1.0 / GRID_TO_WORLD))
-    }
-
     pub fn to_grid_x(&self, x: f32) -> f32 {
         (x - self.world_offset.x) / GRID_TO_WORLD
     }
@@ -165,10 +161,10 @@ impl Grid {
             return;
         }
 
-        let left = clamp(0.0, (GRID_WIDTH - 1) as f32, left) as usize;
-        let right = clamp(0.0, (GRID_WIDTH - 1) as f32, right) as usize;
-        let bottom = clamp(0.0, (GRID_HEIGHT - 1) as f32, bottom) as usize;
-        let top = clamp(0.0, (GRID_HEIGHT - 1) as f32, top) as usize;
+        let left = math::clamp(0.0, (GRID_WIDTH - 1) as f32, left) as usize;
+        let right = math::clamp(0.0, (GRID_WIDTH - 1) as f32, right) as usize;
+        let bottom = math::clamp(0.0, (GRID_HEIGHT - 1) as f32, bottom) as usize;
+        let top = math::clamp(0.0, (GRID_HEIGHT - 1) as f32, top) as usize;
 
         for x in left..=right {
             for y in bottom..=top {
@@ -185,70 +181,11 @@ impl Grid {
         match tile.0 {
             Solid(_) => {
                 let tile_point = self.to_world_coords((tile.1, tile.2));
-                rect_from_point(tile_point, TILE_SIZE, TILE_SIZE)
+                math::rect_from_point(tile_point, TILE_SIZE, TILE_SIZE)
             }
             Air => unreachable!(),
         }
     }
-}
-
-pub fn clamp(lower: f32, upper: f32, n: f32) -> f32 {
-    if upper < n {
-        return upper;
-    } else if lower > n {
-        return lower;
-    }
-    n
-}
-
-/// Makes a rect from a given point
-pub fn rect_from_point(point: Point2, w: f32, h: f32) -> Rect {
-    Rect {
-        x: point.x,
-        y: point.y,
-        w,
-        h,
-    }
-}
-
-/// Give the horizontal displacement and velocity of a moving rectangle intersecting another rectangle
-/// Assumes that the origin of the rectanges are at the lower left corner.
-pub fn collision_resolve_horiz(rect: Rect, velocity: Vector2, fixed: Rect) -> (f32, Vector2) {
-    if rect.overlaps(&fixed) {
-        // Intersects while moving left, so push out right
-        if velocity.x < 0.0 {
-            return (
-                fixed.right() - rect.left() + 0.01,
-                Vector2::new(0.0, velocity.y),
-            );
-        } else {
-            return (
-                fixed.left() - rect.right() - 0.01,
-                Vector2::new(0.0, velocity.y),
-            );
-        }
-    }
-    (0.0, velocity)
-}
-
-/// Give the vertical displacement and resulting velocity of a moving rectangle intersecting another rectangle
-/// Assumes that the origin of the rectanges are at the lower left corner.
-pub fn collision_resolve_vert(rect: Rect, velocity: Vector2, fixed: Rect) -> (f32, Vector2) {
-    if rect.overlaps(&fixed) {
-        // Intersects while moving up, so push out down
-        if velocity.y > 0.0 {
-            return (
-                fixed.y - (rect.y + rect.h) - 0.01,
-                Vector2::new(velocity.x, 0.0),
-            );
-        } else {
-            return (
-                (fixed.y + fixed.h) - rect.y + 0.01,
-                Vector2::new(velocity.x, 0.0),
-            );
-        }
-    }
-    (0.0, velocity)
 }
 
 #[derive(PartialEq)]

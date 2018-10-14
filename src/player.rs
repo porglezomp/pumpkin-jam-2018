@@ -6,9 +6,11 @@ use ggez::{
 
 use crate::bullet::Bullet;
 
+use crate::collide;
 use crate::draw;
 use crate::grid;
 use crate::images::Images;
+use crate::math;
 
 pub const PLAYER_MAX_HEALTH: u8 = 3;
 pub const PLAYER_HEIGHT: f32 = 0.8;
@@ -171,60 +173,39 @@ impl Player {
         self.vel.y *= 0.995;
 
         let mut colliders = Vec::with_capacity(8);
-        let mut tiles = Vec::with_capacity(6);
         let mut next_pos = self.pos;
 
+        // Resolve Vertically
         next_pos.y += self.vel.y * crate::DT;
+        let next_rect = math::rect_from_point(next_pos, PLAYER_WIDTH, PLAYER_HEIGHT);
+        collide::get_overlapping_tiles(grids, next_rect, &mut colliders);
 
-        colliders.clear();
-        for grid in grids {
-            tiles.clear();
-            grid.overlapping_tiles(
-                grid::rect_from_point(next_pos, PLAYER_WIDTH, PLAYER_HEIGHT),
-                &mut tiles,
-            );
-            for &tile in &tiles {
-                colliders.push(grid.to_world_collider(tile))
-            }
-        }
+        let (res_disp_y, res_vel_y) =
+            collide::resolve_colliders_vert(next_rect, self.vel, &colliders);
+        next_pos.y += res_disp_y;
+        self.vel = res_vel_y;
+        // If the displacement was vertical that means we have been pushed up
+        // out of the ground, which means we are probably grounded.
+        self.grounded = res_disp_y > 0.0;
 
-        for &collider in &colliders {
-            let next_rect = grid::rect_from_point(next_pos, PLAYER_WIDTH, PLAYER_HEIGHT);
-            let (res_disp, res_vel) = grid::collision_resolve_vert(next_rect, self.vel, collider);
-            next_pos.y += res_disp;
-            self.vel = res_vel;
-            // If the displacement was vertical that means we have been pushed up
-            // out of the ground, which means we are probably grounded.
-            self.grounded = self.grounded || res_disp > 0.0;
-        }
-
+        // Resolve Horizontally
         next_pos.x += crate::DT * self.vel.x;
+        colliders.clear();
 
-        for grid in grids {
-            tiles.clear();
-            grid.overlapping_tiles(
-                grid::rect_from_point(next_pos, PLAYER_WIDTH, PLAYER_HEIGHT),
-                &mut tiles,
-            );
-            for &tile in &tiles {
-                colliders.push(grid.to_world_collider(tile))
-            }
-        }
+        let next_rect = math::rect_from_point(next_pos, PLAYER_WIDTH, PLAYER_HEIGHT);
+        collide::get_overlapping_tiles(grids, next_rect, &mut colliders);
 
-        for &collider in &colliders {
-            let next_rect = grid::rect_from_point(next_pos, PLAYER_WIDTH, PLAYER_HEIGHT);
-            let (res_disp, res_vel) = grid::collision_resolve_horiz(next_rect, self.vel, collider);
-            next_pos.x += res_disp;
-            self.vel = res_vel;
-        }
-
+        let (res_disp_x, res_vel_x) =
+            collide::resolve_colliders_horiz(next_rect, self.vel, &colliders);
+        next_pos.x += res_disp_x;
+        self.vel = res_vel_x;
         self.pos = next_pos;
 
         // Don't let the player escape!
         if self.pos.y + PLAYER_HEIGHT > draw::WORLD_HEIGHT {
             self.pos.y = draw::WORLD_HEIGHT - PLAYER_HEIGHT;
         }
-        self.pos.x = grid::clamp(0.0, draw::WORLD_WIDTH - PLAYER_WIDTH, self.pos.x);
+        self.pos.x = math::clamp(0.0, draw::WORLD_WIDTH - PLAYER_WIDTH, self.pos.x);
         // Gravity
         self.acc = Vector2::new(0.0, -20.0);
     }
