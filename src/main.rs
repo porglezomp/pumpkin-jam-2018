@@ -89,9 +89,27 @@ impl MainState {
         let modules =
             grid::parse_modules_file(ctx, MODULES_PATH).expect("Should load the modules file");
         let grids = vec![
-            Grid::new_from_module((grid::GRID_HEIGHT * 0) as f32, modules[0].clone()),
-            Grid::new_from_module((grid::GRID_HEIGHT * 1) as f32, modules[0].clone()),
-            Grid::new_from_module((grid::GRID_HEIGHT * 2) as f32, modules[0].clone()),
+            Grid::new_from_module(
+                (grid::GRID_HEIGHT * 3) as f32,
+                rand::thread_rng()
+                    .choose(&modules[..GRID.menu_num])
+                    .unwrap()
+                    .clone(),
+            ),
+            Grid::new_from_module(
+                (grid::GRID_HEIGHT * 4) as f32,
+                rand::thread_rng()
+                    .choose(&modules[..GRID.menu_num])
+                    .unwrap()
+                    .clone(),
+            ),
+            Grid::new_from_module(
+                (grid::GRID_HEIGHT * 5) as f32,
+                rand::thread_rng()
+                    .choose(&modules[..GRID.menu_num])
+                    .unwrap()
+                    .clone(),
+            ),
         ];
 
         let images = images::Images::new(ctx)?;
@@ -313,10 +331,23 @@ impl ggez::event::EventHandler for MainState {
 
         if self.grids.len() > 0 && self.grids[0].world_offset.y <= -(grid::GRID_HEIGHT as f32) {
             self.grids.remove(0);
-            self.grids.push(Grid::new_from_module(
-                grid::GRID_HEIGHT as f32 * 3.0,
-                rand::thread_rng().choose(&self.modules).unwrap().clone(),
-            ));
+            if self.in_menu {
+                self.grids.push(Grid::new_from_module(
+                    grid::GRID_HEIGHT as f32 * 3.0,
+                    rand::thread_rng()
+                        .choose(&self.modules[..GRID.menu_num])
+                        .unwrap()
+                        .clone(),
+                ));
+            } else {
+                self.grids.push(Grid::new_from_module(
+                    grid::GRID_HEIGHT as f32 * 3.0,
+                    rand::thread_rng()
+                        .choose(&self.modules[GRID.menu_num..])
+                        .unwrap()
+                        .clone(),
+                ));
+            }
         }
 
         for i in 0..self.grids.len() {
