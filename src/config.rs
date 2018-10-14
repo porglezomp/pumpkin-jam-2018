@@ -91,6 +91,7 @@ config! {
         falling_accel: f32 = -25.0,
         death_threshold: f32 = 0.95,
         no_spawn_threshold: f32 = 0.5,
+        gap: f32 = 0.5,
     };
 
     config MENU: menu = Menu {

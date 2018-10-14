@@ -58,6 +58,13 @@ const ARROW_CONTROLS: Controls = Controls {
 const DT: f32 = 1.0 / 60.0;
 const MODULES_PATH: &str = "/modules.txt";
 
+#[derive(PartialEq)]
+enum MenuPhase {
+    InMenu,
+    DropMenu,
+    InGame,
+}
+
 struct MainState {
     focused: bool,
     in_menu: bool,
@@ -68,6 +75,7 @@ struct MainState {
     bullets: Vec<Bullet>,
     images: Images,
     sounds: Sound,
+    menu_phase: MenuPhase,
 }
 
 fn somes_mut<'a, T: 'a>(
@@ -99,6 +107,7 @@ impl MainState {
             bullets: Vec::with_capacity(20),
             images,
             sounds,
+            menu_phase: MenuPhase::InMenu,
         })
     }
 
@@ -195,11 +204,45 @@ impl ggez::event::EventHandler for MainState {
             }
             if ready && player_count >= 2 {
                 self.in_menu = false;
+                self.menu_phase = MenuPhase::DropMenu;
+                for grid in &mut self.grids {
+                    if grid.state == GridState::Alive {
+                        grid.state = GridState::Dead;
+                    }
+                }
+                for player in somes_mut(&mut self.players) {
+                    player.alive = false;
+                    player.lives = PLAYER.max_lives;
+                }
             }
         }
 
-        for grid in &mut self.grids {
-            grid.fixed_update();
+        match self.menu_phase {
+            MenuPhase::InMenu => (),
+            MenuPhase::DropMenu => {
+                if self
+                    .grids
+                    .iter()
+                    .all(|x| x.state == GridState::Alive && x.vel.y == 0.0)
+                {
+                    self.menu_phase = MenuPhase::InGame;
+                }
+            }
+            MenuPhase::InGame => (),
+        }
+
+        for i in 0..self.grids.len() {
+            if i == 0 {
+                let target = if self.grids[0].state == GridState::Dead {
+                    -(grid::GRID_HEIGHT as f32)
+                } else {
+                    0.0
+                };
+                self.grids[i].fixed_update(target);
+            } else {
+                let offset = self.grids[i - 1].world_offset.y + grid::GRID_HEIGHT as f32;
+                self.grids[i].fixed_update(offset);
+            }
         }
 
         for player in somes_mut(&mut self.players) {
@@ -212,7 +255,7 @@ impl ggez::event::EventHandler for MainState {
                 player.fixed_update(&self.grids);
 
                 // If the player is dead attempt to respawn them
-                if !player.alive {
+                if !player.alive && self.menu_phase != MenuPhase::DropMenu {
                     let mut indicies: Vec<_> = (0..self.grids.len()).collect();
                     rand::thread_rng().shuffle(&mut indicies);
                     for i in indicies {
@@ -254,29 +297,16 @@ impl ggez::event::EventHandler for MainState {
             }
         }
 
+        if self.grids.len() > 0 && self.grids[0].world_offset.y <= -(grid::GRID_HEIGHT as f32) {
+            self.grids.remove(0);
+            self.grids.push(Grid::new_from_module(
+                grid::GRID_HEIGHT as f32 * 3.0,
+                rand::thread_rng().choose(&self.modules).unwrap().clone(),
+            ));
+        }
+
         for i in 0..self.grids.len() {
-            if i == 0 {
-                self.grids[0].update(None);
-
-                // If the bottom grid is dead, make it fall, and a new grid
-                if self.grids[0].state == GridState::Dead {
-                    self.grids.push(Grid::new_from_module(
-                        grid::GRID_HEIGHT as f32 * 3.0,
-                        rand::thread_rng().choose(&self.modules).unwrap().clone(),
-                    ));
-                    self.grids[0].fall(-1.0 * (grid::GRID_HEIGHT as f32));
-                }
-
-                // When the bottom gird is offscreen, remove it
-                if let GridState::DeadFalling(goal_height) = self.grids[0].state {
-                    if self.grids[0].height() - goal_height < 0.1 {
-                        self.grids.remove(0);
-                    }
-                }
-            } else {
-                let (left, right) = self.grids.split_at_mut(i);
-                right.first_mut().unwrap().update(left.last());
-            }
+            self.grids[i].update();
         }
         self.sounds.update();
         timer::yield_now();
