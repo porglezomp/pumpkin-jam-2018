@@ -225,8 +225,7 @@ impl ggez::event::EventHandler for MainState {
                             grid::GRID_HEIGHT as f32 * 3.0,
                             rand::thread_rng().choose(&self.modules).unwrap().clone(),
                         ));
-                        self.grids[0].state =
-                            GridState::DeadFalling(-1.0 * (grid::GRID_HEIGHT as f32));
+                        self.grids[0].fall(-1.0 * (grid::GRID_HEIGHT as f32));
                     }
 
                     // When the bottom gird is offscreen, remove it
