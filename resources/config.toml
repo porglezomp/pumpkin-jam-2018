@@ -1,0 +1,51 @@
+[team]
+colors = [
+  [0.25, 0.7, 1.0, 1.0],
+  [0.8, 0.2, 0.2, 1.0],
+  [0.3, 1.0, 0.5, 1.0],
+  [1.0, 0.9, 0.2, 1.0],
+]
+
+[player]
+max_health = 4
+max_lives = 4
+height = 0.8
+width = 0.8
+shoot_offset_x = 0.5
+shoot_offset_y = 0.5
+jump_power = 16.0
+
+[grid]
+tile_max_health = 4
+falling_accel = -25.0
+death_threshold = 0.99
+no_spawn_threshold = 0.5
+
+
+[menu]
+life_offset = [1.2, 0.0]
+heart_offset = [0.7, 0.0]
+
+[[menu.pos]]
+join_pos = [23.0, 1.0]
+heart_pos = [29.0, 1.0]
+ready_pos = [27.5, 2.0]
+life_pos = [27.5, 2.0]
+
+[[menu.pos]]
+join_pos = [1.0, 1.0]
+heart_pos = [1.0, 1.0]
+ready_pos = [0.5, 2.0]
+life_pos = [0.5, 2.0]
+
+[[menu.pos]]
+join_pos = [1.0, 21.0]
+heart_pos = [1.0, 22.0]
+ready_pos = [0.5, 21.0]
+life_pos = [0.5, 21.0]
+
+[[menu.pos]]
+join_pos = [23.0, 21.0]
+heart_pos = [29.0, 22.0]
+ready_pos = [27.5, 21.0]
+life_pos = [27.5, 21.0]

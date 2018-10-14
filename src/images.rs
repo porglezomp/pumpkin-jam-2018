@@ -9,6 +9,7 @@ pub struct Images {
     pub ready: Image,
     pub player: Image,
     pub heart: Image,
+    pub lives: Image,
 }
 
 impl Images {
@@ -20,6 +21,7 @@ impl Images {
             ready: Image::new(ctx, "/ready.png")?,
             player: Image::solid(ctx, 16, Color::new(1.0, 1.0, 1.0, 1.0))?,
             heart: Image::new(ctx, "/heart.png")?,
+            lives: Image::new(ctx, "/lives.png")?,
         })
     }
 }

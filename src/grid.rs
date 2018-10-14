@@ -11,6 +11,7 @@ use rand;
 use rand::Rng;
 
 use crate::collide::WorldRect;
+use crate::config::GRID;
 use crate::draw::{self, Batch, WorldCoord};
 use crate::math;
 use crate::Images;
@@ -21,12 +22,7 @@ pub type GridCoord = usize;
 pub const GRID_WIDTH: GridCoord = 32;
 pub const GRID_HEIGHT: GridCoord = 8;
 pub const TILE_SIZE: WorldCoord = 1.0f32;
-pub const TILE_MAX_HEALTH: u8 = 4;
 const GRID_TO_WORLD: f32 = TILE_SIZE as f32 * draw::WORLD_WIDTH / GRID_WIDTH as f32;
-
-pub const GRID_FALLING_ACCEL: f32 = -25.0;
-pub const DEATH_THRESHOLD: f32 = 0.95;
-pub const NO_SPAWN_THRESHOLD: f32 = 0.5;
 
 /// A grid contains the collidable tiles that our dynamic objects interact with
 pub struct Grid {
@@ -78,7 +74,7 @@ impl Grid {
     pub fn update(&mut self, grid_below: Option<&Grid>) {
         use self::GridState::*;
 
-        if self.percent_tiles_alive() < DEATH_THRESHOLD && self.state == Alive {
+        if self.percent_tiles_alive() < GRID.death_threshold && self.state == Alive {
             self.state = Dead;
         }
         const GRID_HEIGHT_F32: f32 = TILE_SIZE * GRID_HEIGHT as f32;
@@ -122,7 +118,7 @@ impl Grid {
                             continue;
                         }
 
-                        let idx = (0 + (TILE_MAX_HEALTH - health)) as usize;
+                        let idx = (0 + (GRID.tile_max_health - health)) as usize;
                         batch.add(
                             idx,
                             DrawParam {
@@ -167,7 +163,7 @@ impl Grid {
             Dead => DeadFalling(goal_height),
             _ => unreachable!(),
         };
-        self.acc = Vector2::new(0.0, GRID_FALLING_ACCEL);
+        self.acc = Vector2::new(0.0, GRID.falling_accel);
     }
 
     pub fn percent_tiles_alive(&self) -> f32 {
@@ -311,7 +307,7 @@ fn text_to_row(row: &str) -> Result<[Tile; GRID_WIDTH], String> {
             '!' => tiles[i] = Tile::Start(1),
             ']' => tiles[i] = Tile::Start(2),
             '?' => tiles[i] = Tile::Leave,
-            '#' => tiles[i] = Tile::Solid(TILE_MAX_HEALTH),
+            '#' => tiles[i] = Tile::Solid(GRID.tile_max_health),
             ' ' => tiles[i] = Tile::Air,
             _ => {
                 return Err(format!(
