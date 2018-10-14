@@ -4,13 +4,14 @@ use std::{
 };
 
 use ggez::{
-    graphics::{Color, DrawParam, Image, Point2, Vector2},
+    graphics::{Color, DrawParam, Point2, Vector2},
     Context, GameResult,
 };
 use rand;
 use rand::Rng;
 
 use crate::draw::{self, Batch, WorldCoord};
+use crate::Images;
 
 pub type GridCoord = usize;
 pub type Module = [[Tile; GRID_WIDTH]; GRID_HEIGHT];
@@ -77,9 +78,9 @@ impl Grid {
         }
     }
 
-    pub fn draw(&mut self, ctx: &mut Context, image: Image) -> GameResult<()> {
+    pub fn draw(&mut self, ctx: &mut Context, images: &Images) -> GameResult<()> {
         use self::Tile::*;
-        let mut batch = Batch::new(image);
+        let mut batch = Batch::new(images.leaves.clone());
         for (j, row) in self.module.iter().enumerate() {
             for (i, tile) in row.iter().enumerate() {
                 match *tile {

@@ -1,6 +1,6 @@
 use ggez::{
     graphics,
-    graphics::{spritebatch::SpriteBatch, DrawParam, Drawable, Image, Point2},
+    graphics::{spritebatch::SpriteBatch, DrawParam, Drawable, Image, Point2, Vector2},
     Context, GameResult,
 };
 
@@ -45,6 +45,7 @@ impl Batch {
 
 pub fn draw_sprite(ctx: &mut Context, image: &Image, param: DrawParam) -> GameResult<()> {
     let param = DrawParam {
+        dest: param.dest + Vector2::new(0.0, image.height() as f32 * PIX / SCALE_Y / 2.0),
         offset: Point2::new(0.0, 0.5),
         scale: Point2::new(PIX / SCALE_X, -PIX / SCALE_Y),
         ..param

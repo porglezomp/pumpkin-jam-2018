@@ -1,6 +1,6 @@
 use ggez::{
     event,
-    graphics::{self, Color, Point2, Rect, Vector2},
+    graphics::{Color, DrawParam, Point2, Rect, Vector2},
     Context, GameResult,
 };
 
@@ -8,8 +8,35 @@ use crate::bullet::Bullet;
 
 use crate::draw;
 use crate::grid;
+use crate::images::Images;
 
 pub const PLAYER_MAX_HEALTH: u8 = 3;
+pub const TEAM_COLORS: [Color; 4] = [
+    Color {
+        r: 0.25,
+        g: 0.7,
+        b: 1.0,
+        a: 1.0,
+    },
+    Color {
+        r: 0.8,
+        g: 0.2,
+        b: 0.2,
+        a: 1.0,
+    },
+    Color {
+        r: 0.3,
+        g: 1.0,
+        b: 0.5,
+        a: 1.0,
+    },
+    Color {
+        r: 1.0,
+        g: 0.9,
+        b: 0.25,
+        a: 1.0,
+    },
+];
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct Team(pub u8);
@@ -45,7 +72,6 @@ pub struct ControlState {
 #[derive(Debug)]
 pub struct Player {
     pub team: Team,
-    mesh: graphics::Mesh,
     pub controls: Controls,
     pub control_state: ControlState,
     pos: Point2,
@@ -57,21 +83,9 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(ctx: &mut Context, team: Team, controls: Controls) -> GameResult<Self> {
-        let mesh = graphics::Mesh::new_polygon(
-            ctx,
-            graphics::DrawMode::Fill,
-            &[
-                Point2::new(-0.5, 2.0),
-                Point2::new(-0.5, 0.0),
-                Point2::new(0.5, 0.0),
-                Point2::new(0.5, 2.0),
-            ],
-        )?;
-
-        Ok(Player {
+    pub fn new(team: Team, controls: Controls) -> Self {
+        Player {
             team,
-            mesh,
             controls,
             control_state: ControlState::default(),
             pos: Point2::new(0.0, 0.0),
@@ -80,7 +94,7 @@ impl Player {
             health: PLAYER_MAX_HEALTH,
             cooldown: 0.0,
             alive: false,
-        })
+        }
     }
 
     fn controls(&mut self) {
@@ -170,20 +184,19 @@ impl Player {
         self.acc = Vector2::new(0.0, -20.0);
     }
 
-    pub fn draw(&self, ctx: &mut Context) -> GameResult<()> {
+    pub fn draw(&self, ctx: &mut Context, images: &Images) -> GameResult<()> {
         if !self.alive {
             return Ok(());
         }
-        graphics::set_color(
+        draw::draw_sprite(
             ctx,
-            Color {
-                r: 1.0,
-                g: 1.0,
-                b: 1.0,
-                a: 1.0,
+            &images.player,
+            DrawParam {
+                dest: self.pos,
+                color: Some(Color::new(1.0, 1.0, 1.0, 1.0)),
+                ..Default::default()
             },
         )?;
-        draw::draw(ctx, &self.mesh, self.pos, 0.0)?;
         Ok(())
     }
 

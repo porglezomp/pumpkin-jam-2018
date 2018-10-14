@@ -9,6 +9,7 @@ const JOIN_PATH: &str = "/join.png";
 pub struct Images {
     pub leaves: Image,
     pub join: Image,
+    pub player: Image,
 }
 
 impl Images {
@@ -17,6 +18,7 @@ impl Images {
         Ok(Images {
             leaves: Image::solid(ctx, 16, Color::new(1.0, 1.0, 1.0, 1.0))?,
             join: Image::new(ctx, JOIN_PATH)?,
+            player: Image::solid(ctx, 16, Color::new(1.0, 1.0, 1.0, 1.0))?,
         })
     }
 }
