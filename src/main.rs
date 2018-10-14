@@ -182,7 +182,7 @@ impl ggez::event::EventHandler for MainState {
         while timer::check_update_time(ctx, DESIRED_FPS) {
             // fixed update
             for player in somes_mut(&mut self.players) {
-                player.fixed_update();
+                player.fixed_update(&self.grids);
 
                 if !player.alive {
                     let mut indicies: Vec<_> = (0..self.grids.len()).collect();

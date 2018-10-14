@@ -4,7 +4,7 @@ use std::{
 };
 
 use ggez::{
-    graphics::{Color, DrawParam, Point2, Vector2},
+    graphics::{spritebatch::SpriteBatch, Color, DrawParam, Image, Point2, Rect, Vector2},
     Context, GameResult,
 };
 use rand;
@@ -14,12 +14,15 @@ use crate::draw::{self, Batch, WorldCoord};
 use crate::Images;
 
 pub type GridCoord = usize;
+pub type GridPoint = Point2;
+/// a point in Grid Space
 pub type Module = [[Tile; GRID_WIDTH]; GRID_HEIGHT];
-
+pub type WorldRect = Rect;
 pub const GRID_WIDTH: GridCoord = 32;
 pub const GRID_HEIGHT: GridCoord = 8;
 pub const TILE_SIZE: WorldCoord = 1.0f32;
-pub const TILE_MAX_HEALTH: usize = 5;
+pub const TILE_MAX_HEALTH: u8 = 5;
+const GRID_TO_WORLD: f32 = TILE_SIZE as f32 * draw::WORLD_WIDTH / GRID_WIDTH as f32;
 
 pub const DEATH_THRESHOLD: f32 = 0.25;
 pub const NO_SPAWN_THRESHOLD: f32 = 0.5;
@@ -134,12 +137,115 @@ impl Grid {
     }
 
     pub fn to_world_coords(&self, grid_coords: (GridCoord, GridCoord)) -> Point2 {
-        const SCALING_FACTOR: f32 = TILE_SIZE as f32 * draw::WORLD_WIDTH / GRID_WIDTH as f32;
-        self.world_offset + Vector2::new(
-            SCALING_FACTOR * grid_coords.1 as f32,
-            SCALING_FACTOR * grid_coords.0 as f32,
-        )
+        self.world_offset + GRID_TO_WORLD * Vector2::new(grid_coords.0 as f32, grid_coords.1 as f32)
     }
+
+    pub fn to_grid_coords(&self, world_coords: Point2) -> GridPoint {
+        GridPoint::origin() + ((world_coords - self.world_offset) * (1.0 / GRID_TO_WORLD))
+    }
+
+    pub fn to_grid_x(&self, x: f32) -> f32 {
+        (x - self.world_offset.x) / GRID_TO_WORLD
+    }
+
+    pub fn to_grid_y(&self, y: f32) -> f32 {
+        (y - self.world_offset.y) / GRID_TO_WORLD
+    }
+
+    pub fn overlapping_tiles(&self, rect: WorldRect, out: &mut Vec<(Tile, usize, usize)>) {
+        let left = self.to_grid_x(rect.left());
+        let right = self.to_grid_x(rect.right());
+        let top = self.to_grid_y(rect.y + rect.h);
+        let bottom = self.to_grid_y(rect.y);
+
+        if top < 0.0 || bottom > GRID_HEIGHT as f32 || left < 0.0 || right > GRID_WIDTH as f32 {
+            return;
+        }
+
+        let left = clamp(0.0, (GRID_WIDTH - 1) as f32, left) as usize;
+        let right = clamp(0.0, (GRID_WIDTH - 1) as f32, right) as usize;
+        let bottom = clamp(0.0, (GRID_HEIGHT - 1) as f32, bottom) as usize;
+        let top = clamp(0.0, (GRID_HEIGHT - 1) as f32, top) as usize;
+
+        for x in left..=right {
+            for y in bottom..=top {
+                if self.module[y][x] == Tile::Air {
+                    continue;
+                }
+                out.push((self.module[y][x], x, y));
+            }
+        }
+    }
+
+    pub fn to_world_collider(&self, tile: (Tile, usize, usize)) -> WorldRect {
+        use self::Tile::*;
+        match tile.0 {
+            Solid(_) => {
+                let tile_point = self.to_world_coords((tile.1, tile.2));
+                rect_from_point(tile_point, TILE_SIZE, TILE_SIZE)
+            }
+            Air => unreachable!(),
+        }
+    }
+}
+
+fn clamp(lower: f32, upper: f32, n: f32) -> f32 {
+    if upper < n {
+        return upper;
+    } else if lower > n {
+        return lower;
+    }
+    n
+}
+
+/// Makes a rect from a given point
+pub fn rect_from_point(point: Point2, w: f32, h: f32) -> Rect {
+    Rect {
+        x: point.x,
+        y: point.y,
+        w,
+        h,
+    }
+}
+
+/// Give the horizontal displacement and velocity of a moving rectangle intersecting another rectangle
+/// Assumes that the origin of the rectanges are at the lower left corner.
+pub fn collision_resolve_horiz(rect: Rect, velocity: Vector2, fixed: Rect) -> (f32, Vector2) {
+    if rect.overlaps(&fixed) {
+        // Intersects while moving left, so push out right
+        if velocity.x < 0.0 {
+            return (
+                fixed.right() - rect.left() + 0.01,
+                Vector2::new(0.0, velocity.y),
+            );
+        } else {
+            return (
+                fixed.left() - rect.right() - 0.01,
+                Vector2::new(0.0, velocity.y),
+            );
+        }
+    }
+    (0.0, velocity)
+}
+
+/// Give the vertical displacement and resulting velocity of a moving rectangle intersecting another rectangle
+/// Assumes that the origin of the rectanges are at the lower left corner.
+pub fn collision_resolve_vert(rect: Rect, velocity: Vector2, fixed: Rect) -> (f32, Vector2) {
+    if rect.overlaps(&fixed) {
+        // Intersects while moving up, so push out down
+        if velocity.y > 0.0 {
+            return (
+                fixed.y - (rect.y + rect.h) - 0.01,
+                Vector2::new(velocity.x, 0.0),
+            );
+        } else {
+            return (
+                (fixed.y + fixed.h) - rect.y + 0.01,
+                Vector2::new(velocity.x, 0.0),
+            );
+        }
+    }
+    (0.0, velocity)
 }
 
 #[derive(PartialEq)]
@@ -227,10 +333,10 @@ fn text_to_row(row: &str) -> Result<[Tile; GRID_WIDTH], String> {
     Ok(tiles)
 }
 
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Tile {
     Air,
-    Solid(usize),
+    Solid(u8),
 }
 
 pub const HEALTHY: Color = Color {
