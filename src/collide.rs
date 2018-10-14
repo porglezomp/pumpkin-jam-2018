@@ -1,9 +1,21 @@
+use crate::grid::Grid;
 use ggez::graphics::{Rect, Vector2};
 
 use crate::math;
 
 pub type WorldRect = Rect;
 pub const COLLISION_TOLERANCE: f32 = 0.01;
+
+pub fn get_overlapping_tiles(grids: &[Grid], rect: Rect, out: &mut Vec<WorldRect>) {
+    let mut tiles = Vec::with_capacity(6);
+    for grid in grids {
+        tiles.clear();
+        grid.overlapping_tiles(rect, &mut tiles);
+        for &tile in &tiles {
+            out.push(grid.to_world_collider(tile))
+        }
+    }
+}
 
 /// Give the horizontal displacement and velocity of a moving rectangle intersecting another rectangle
 /// Assumes that the origin of the rectanges are at the lower left corner.

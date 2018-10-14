@@ -173,51 +173,32 @@ impl Player {
         self.vel.y *= 0.995;
 
         let mut colliders = Vec::with_capacity(8);
-        let mut tiles = Vec::with_capacity(6);
         let mut next_pos = self.pos;
 
+        // Resolve Vertically
         next_pos.y += self.vel.y * crate::DT;
-
-        colliders.clear();
-        for grid in grids {
-            tiles.clear();
-            grid.overlapping_tiles(
-                math::rect_from_point(next_pos, PLAYER_WIDTH, PLAYER_HEIGHT),
-                &mut tiles,
-            );
-            for &tile in &tiles {
-                colliders.push(grid.to_world_collider(tile))
-            }
-        }
-
         let next_rect = math::rect_from_point(next_pos, PLAYER_WIDTH, PLAYER_HEIGHT);
+        collide::get_overlapping_tiles(grids, next_rect, &mut colliders);
+
         let (res_disp_y, res_vel_y) =
             collide::resolve_colliders_vert(next_rect, self.vel, &colliders);
         next_pos.y += res_disp_y;
         self.vel = res_vel_y;
         // If the displacement was vertical that means we have been pushed up
         // out of the ground, which means we are probably grounded.
-        self.grounded = self.grounded || res_disp_y > 0.0;
+        self.grounded = res_disp_y > 0.0;
 
+        // Resolve Horizontally
         next_pos.x += crate::DT * self.vel.x;
-
-        for grid in grids {
-            tiles.clear();
-            grid.overlapping_tiles(
-                math::rect_from_point(next_pos, PLAYER_WIDTH, PLAYER_HEIGHT),
-                &mut tiles,
-            );
-            for &tile in &tiles {
-                colliders.push(grid.to_world_collider(tile))
-            }
-        }
+        colliders.clear();
 
         let next_rect = math::rect_from_point(next_pos, PLAYER_WIDTH, PLAYER_HEIGHT);
+        collide::get_overlapping_tiles(grids, next_rect, &mut colliders);
+
         let (res_disp_x, res_vel_x) =
             collide::resolve_colliders_horiz(next_rect, self.vel, &colliders);
         next_pos.x += res_disp_x;
         self.vel = res_vel_x;
-
         self.pos = next_pos;
 
         // Don't let the player escape!
