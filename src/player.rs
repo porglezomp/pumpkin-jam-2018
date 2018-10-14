@@ -176,14 +176,17 @@ impl Player {
         self.vel.x *= 0.95;
         self.vel.y *= 0.995;
 
+        // Collision resolution, this is done by move the player along the y-axis,
+        // and moving them them back so that they do not collide with the wall,
+        // and then repeating this process for the x-axis.
         let mut colliders = Vec::with_capacity(8);
         let mut next_pos = self.pos;
 
         // Resolve Vertically
         next_pos.y += self.vel.y * crate::DT;
+
         let next_rect = math::rect_from_point(next_pos, PLAYER_WIDTH, PLAYER_HEIGHT);
         collide::get_overlapping_tiles(grids, next_rect, &mut colliders);
-
         let (res_disp_y, res_vel_y) =
             collide::resolve_colliders_vert(next_rect, self.vel, &colliders);
         next_pos.y += res_disp_y;
@@ -194,15 +197,15 @@ impl Player {
 
         // Resolve Horizontally
         next_pos.x += crate::DT * self.vel.x;
-        colliders.clear();
 
         let next_rect = math::rect_from_point(next_pos, PLAYER_WIDTH, PLAYER_HEIGHT);
+        colliders.clear();
         collide::get_overlapping_tiles(grids, next_rect, &mut colliders);
-
         let (res_disp_x, res_vel_x) =
             collide::resolve_colliders_horiz(next_rect, self.vel, &colliders);
         next_pos.x += res_disp_x;
         self.vel = res_vel_x;
+
         self.pos = next_pos;
 
         // Don't let the player escape!
