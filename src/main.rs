@@ -3,65 +3,72 @@ use std::path;
 use ggez::{
     conf::{WindowMode, WindowSetup},
     event,
-    graphics::{self, Image, Point2},
+    graphics::{self, Color, DrawParam, Point2},
     timer, Context, ContextBuilder, GameResult,
 };
 use rand::{thread_rng, Rng};
 
 use crate::bullet::Bullet;
 use crate::grid::{Grid, GridState, Module};
-use crate::player::{Player, Team};
+use crate::images::Images;
+use crate::player::{Axis, Button, Controls, Player, Team};
 
 mod bullet;
 mod draw;
 mod grid;
+mod images;
 mod player;
 
-const MODULES_PATH: &str = "./resources/modules.txt";
-const LEAVES_PATH: &str = "/leaves.png";
+fn joycon_controls(id: i32) -> Controls {
+    Controls {
+        lr: Axis::Analog(id, event::Axis::LeftX),
+        jump: Button::Controller(id, event::Button::A),
+        shoot: Button::Controller(id, event::Button::B),
+    }
+}
+
+const WASD_CONTROLS: Controls = Controls {
+    lr: Axis::Buttons(
+        Button::Keyboard(event::Keycode::A),
+        Button::Keyboard(event::Keycode::D),
+    ),
+    jump: Button::Keyboard(event::Keycode::W),
+    shoot: Button::Keyboard(event::Keycode::Tab),
+};
+
+const ARROW_CONTROLS: Controls = Controls {
+    lr: Axis::Buttons(
+        Button::Keyboard(event::Keycode::Left),
+        Button::Keyboard(event::Keycode::Right),
+    ),
+    jump: Button::Keyboard(event::Keycode::Up),
+    shoot: Button::Keyboard(event::Keycode::Comma),
+};
+
 const DT: f32 = 1.0 / 60.0;
+const MODULES_PATH: &str = "/modules.txt";
 
 struct MainState {
     focused: bool,
+    in_menu: bool,
     // Grids are stored from lowest visually to highest
     grids: Vec<Grid>,
     modules: Vec<Module>,
-    players: Vec<Player>,
+    players: [Option<Player>; 4],
     bullets: Vec<Bullet>,
-    leaves_image: Image,
+    images: Images,
+}
+
+fn somes_mut<'a, T: 'a>(
+    i: impl IntoIterator<Item = &'a mut Option<T>>,
+) -> impl Iterator<Item = &'a mut T> {
+    i.into_iter().filter_map(|x| x.as_mut())
 }
 
 impl MainState {
     fn new(ctx: &mut Context) -> GameResult<MainState> {
-        use crate::player::{Axis, Button, Controls};
-        let players = vec![
-            Player::new(
-                ctx,
-                Team(0),
-                Controls {
-                    lr: Axis::Buttons(
-                        Button::Keyboard(event::Keycode::Left),
-                        Button::Keyboard(event::Keycode::Right),
-                    ),
-                    jump: Button::Keyboard(event::Keycode::Up),
-                    shoot: Button::Keyboard(event::Keycode::Space),
-                },
-            )?,
-            // Player::new(
-            //     ctx,
-            //     Team(1),
-            //     Controls {
-            //         lr: Axis::Buttons(
-            //             Button::Keyboard(event::Keycode::A),
-            //             Button::Keyboard(event::Keycode::D),
-            //         ),
-            //         jump: Button::Keyboard(event::Keycode::W),
-            //         shoot: Button::Keyboard(event::Keycode::Tab),
-            //     },
-            // )?,
-        ];
-
-        let modules = grid::parse_modules_file(&path::Path::new(MODULES_PATH)).unwrap();
+        let modules =
+            grid::parse_modules_file(ctx, MODULES_PATH).expect("Should load the modules file");
         let grids = vec![
             Grid::new_from_module((grid::GRID_HEIGHT * 0) as f32, modules[2].clone()),
             Grid::new_from_module((grid::GRID_HEIGHT * 1) as f32, modules[2].clone()),
@@ -71,41 +78,82 @@ impl MainState {
             ),
         ];
 
-        let leaves_image = Image::new(ctx, path::Path::new(LEAVES_PATH))?;
+        let images = images::Images::new(ctx)?;
 
         Ok(MainState {
             focused: true,
+            in_menu: true,
             grids,
             modules,
-            players,
+            players: [None, None, None, None],
             bullets: Vec::with_capacity(20),
-            leaves_image,
+            images,
         })
     }
 
-    fn button(&mut self, btn: player::Button, pressed: bool) {
-        for player in &mut self.players {
+    fn button(&mut self, btn: Button, pressed: bool) {
+        let mut found = false;
+        for player in somes_mut(&mut self.players) {
             if btn == player.controls.jump {
                 player.control_state.jump = pressed;
+                found = true;
             }
             if btn == player.controls.shoot {
                 player.control_state.shoot = pressed;
+                found = true;
             }
-            if let player::Axis::Buttons(ref l, ref r) = player.controls.lr {
+            if let Axis::Buttons(ref l, ref r) = player.controls.lr {
                 if btn == *l {
+                    if pressed {
+                        player.control_state.facing = -1.0;
+                    } else if player.control_state.r_pressed {
+                        player.control_state.facing = 1.0;
+                    }
                     player.control_state.l_pressed = pressed;
+                    found = true;
                 }
                 if btn == *r {
+                    if pressed {
+                        player.control_state.facing = 1.0;
+                    } else if player.control_state.l_pressed {
+                        player.control_state.facing = -1.0;
+                    }
                     player.control_state.r_pressed = pressed;
+                    found = true;
+                }
+            }
+        }
+
+        if !found && pressed {
+            if let Some((i, player)) = self
+                .players
+                .iter_mut()
+                .enumerate()
+                .find(|(_, x)| x.is_none())
+            {
+                match btn {
+                    Button::Keyboard(event::Keycode::Up) => {
+                        *player = Some(Player::new(Team(i as u8), ARROW_CONTROLS));
+                    }
+                    Button::Keyboard(event::Keycode::W) => {
+                        *player = Some(Player::new(Team(i as u8), WASD_CONTROLS));
+                    }
+                    Button::Controller(id, event::Button::A) => {
+                        *player = Some(Player::new(Team(i as u8), joycon_controls(id)));
+                    }
+                    _ => (),
                 }
             }
         }
     }
 
     fn axis(&mut self, axis: event::Axis, id: i32, value: f32) {
-        let axis = player::Axis::Analog(id, axis);
-        for player in &mut self.players {
+        let axis = Axis::Analog(id, axis);
+        for player in somes_mut(&mut self.players) {
             if axis == player.controls.lr {
+                if value.abs() > 0.1 {
+                    player.control_state.facing = value.signum();
+                }
                 player.control_state.lr = value;
             }
         }
@@ -127,15 +175,16 @@ impl ggez::event::EventHandler for MainState {
             return Ok(());
         }
 
-        for player in &mut self.players {
+        for player in somes_mut(&mut self.players) {
             player.update(&mut self.bullets);
         }
 
         while timer::check_update_time(ctx, DESIRED_FPS) {
             // fixed update
-            for player in &mut self.players {
+            for player in somes_mut(&mut self.players) {
                 player.fixed_update(&self.grids);
 
+                // If the player is dead attempt to respawn them
                 if !player.alive {
                     let mut indicies: Vec<_> = (0..self.grids.len()).collect();
                     rand::thread_rng().shuffle(&mut indicies);
@@ -159,7 +208,7 @@ impl ggez::event::EventHandler for MainState {
             }
 
             for bullet in &mut self.bullets {
-                bullet.fixed_update(&mut self.players);
+                bullet.fixed_update(somes_mut(&mut self.players));
             }
 
             self.bullets.retain(|bullet| bullet.is_alive);
@@ -213,19 +262,68 @@ impl ggez::event::EventHandler for MainState {
             return Ok(());
         }
 
+        let time = timer::duration_to_f64(timer::get_time_since_start(ctx));
+        graphics::set_background_color(ctx, Color::new(0.0, 0.0, 0.0, 1.0));
         graphics::clear(ctx);
 
         for grid in &mut self.grids {
-            grid.draw(ctx, self.leaves_image.clone())?;
+            grid.draw(ctx, &self.images)?;
         }
 
-        for player in &self.players {
-            player.draw(ctx)?;
+        draw::draw_sprite(
+            ctx,
+            &self.images.start_flag,
+            DrawParam {
+                dest: Point2::new(8.0, 12.0),
+                ..Default::default()
+            },
+        )?;
+
+        draw::draw_sprite(
+            ctx,
+            &self.images.leave_flag,
+            DrawParam {
+                dest: Point2::new(24.0, 12.0),
+                ..Default::default()
+            },
+        )?;
+
+        for player in somes_mut(&mut self.players) {
+            player.draw(ctx, &self.images)?;
         }
 
         for bullet in &self.bullets {
-            bullet.draw(ctx)?;
+            bullet.draw(ctx, &self.images)?;
         }
+
+        if self.in_menu {
+            let menu_positions = [
+                Point2::new(draw::WORLD_WIDTH - 9.0, 1.0),
+                Point2::new(1.0, 1.0),
+                Point2::new(1.0, draw::WORLD_HEIGHT - 3.0),
+                Point2::new(draw::WORLD_WIDTH - 9.0, draw::WORLD_HEIGHT - 3.0),
+            ];
+            let a = if time % 1.5 < 0.8 { 1.0 } else { 0.25 };
+            for ((player, &dest), &color) in self
+                .players
+                .iter()
+                .zip(&menu_positions)
+                .zip(&player::TEAM_COLORS)
+            {
+                if player.is_none() {
+                    draw::draw_sprite(
+                        ctx,
+                        &self.images.join,
+                        DrawParam {
+                            dest,
+                            color: Some(Color { a, ..color }),
+                            ..Default::default()
+                        },
+                    )?;
+                }
+            }
+        }
+
         graphics::present(ctx);
         Ok(())
     }

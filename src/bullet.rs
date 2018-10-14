@@ -4,6 +4,7 @@ use ggez::{
 };
 
 use crate::draw;
+use crate::images::Images;
 use crate::player::{Player, Team};
 
 const BULLET_WIDTH: f32 = 0.2;
@@ -36,7 +37,7 @@ impl Bullet {
         }
     }
 
-    pub fn fixed_update(&mut self, players: &mut Vec<Player>) {
+    pub fn fixed_update<'a>(&mut self, players: impl Iterator<Item = &'a mut Player>) {
         self.pos += crate::DT * self.vel;
 
         if self.pos.x < -1.0 || self.pos.x > 33.0 {
@@ -51,7 +52,7 @@ impl Bullet {
         }
     }
 
-    pub fn draw(&self, ctx: &mut Context) -> GameResult<()> {
+    pub fn draw(&self, ctx: &mut Context, _images: &Images) -> GameResult<()> {
         let points = [
             Point2::new(-BULLET_WIDTH / 2.0, -BULLET_HEIGHT / 2.0),
             Point2::new(-BULLET_WIDTH / 2.0, BULLET_HEIGHT / 2.0),

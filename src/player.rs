@@ -1,6 +1,6 @@
 use ggez::{
     event,
-    graphics::{self, Color, Point2, Rect, Vector2},
+    graphics::{Color, DrawParam, Point2, Rect, Vector2},
     Context, GameResult,
 };
 
@@ -8,9 +8,39 @@ use crate::bullet::Bullet;
 
 use crate::draw;
 use crate::grid;
+use crate::images::Images;
 
 pub const PLAYER_MAX_HEALTH: u8 = 3;
-pub const CHAR_HEIGHT: f32 = 1.8;
+pub const PLAYER_HEIGHT: f32 = 0.8;
+pub const PLAYER_WIDTH: f32 = 0.8;
+pub const JUMP_POWER: f32 = 16.0;
+pub const TEAM_COLORS: [Color; 4] = [
+    Color {
+        r: 0.25,
+        g: 0.7,
+        b: 1.0,
+        a: 1.0,
+    },
+    Color {
+        r: 0.8,
+        g: 0.2,
+        b: 0.2,
+        a: 1.0,
+    },
+    Color {
+        r: 0.3,
+        g: 1.0,
+        b: 0.5,
+        a: 1.0,
+    },
+    Color {
+        r: 1.0,
+        g: 0.9,
+        b: 0.25,
+        a: 1.0,
+    },
+];
+
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct Team(pub u8);
 
@@ -40,12 +70,12 @@ pub struct ControlState {
     pub shoot: bool,
     pub l_pressed: bool,
     pub r_pressed: bool,
+    pub facing: f32,
 }
 
 #[derive(Debug)]
 pub struct Player {
     pub team: Team,
-    mesh: graphics::Mesh,
     pub controls: Controls,
     pub control_state: ControlState,
     pos: Point2,
@@ -54,24 +84,13 @@ pub struct Player {
     pub health: u8,
     pub cooldown: f32,
     pub alive: bool,
+    pub grounded: bool,
 }
 
 impl Player {
-    pub fn new(ctx: &mut Context, team: Team, controls: Controls) -> GameResult<Self> {
-        let mesh = graphics::Mesh::new_polygon(
-            ctx,
-            graphics::DrawMode::Fill,
-            &[
-                Point2::new(-0.5, 2.0),
-                Point2::new(-0.5, 0.0),
-                Point2::new(0.5, 0.0),
-                Point2::new(0.5, 2.0),
-            ],
-        )?;
-
-        Ok(Player {
+    pub fn new(team: Team, controls: Controls) -> Self {
+        Player {
             team,
-            mesh,
             controls,
             control_state: ControlState::default(),
             pos: Point2::new(0.0, 0.0),
@@ -80,7 +99,8 @@ impl Player {
             health: PLAYER_MAX_HEALTH,
             cooldown: 0.0,
             alive: false,
-        })
+            grounded: false,
+        }
     }
 
     fn controls(&mut self) {
@@ -119,28 +139,17 @@ impl Player {
 
         self.controls();
 
-        let grounded = true;
-        // let grounded = self.pos.y <= 0.0;
-
-        if grounded && self.control_state.jump {
-            self.acc.y = 0.1 / crate::DT;
+        if self.grounded && self.control_state.jump {
+            self.acc.y = JUMP_POWER / crate::DT;
+            self.grounded = false;
         }
 
         if self.control_state.shoot && self.cooldown <= 0.0 {
-            let bullet = if self.control_state.lr > 0.0 {
-                Bullet::new(
-                    self.pos + Vector2::new(0.6, 1.0),
-                    Vector2::new(30.0, 0.0),
-                    self.team,
-                )
-            } else {
-                Bullet::new(
-                    self.pos + Vector2::new(-0.6, 1.0),
-                    Vector2::new(-30.0, 0.0),
-                    self.team,
-                )
-            };
-            bullets.push(bullet);
+            bullets.push(Bullet::new(
+                self.pos + Vector2::new(self.control_state.facing * 0.6, 1.0),
+                Vector2::new(self.control_state.facing * 30.0, 0.0),
+                self.team,
+            ));
             self.cooldown = 0.3;
         }
 
@@ -171,7 +180,7 @@ impl Player {
         for grid in grids {
             tiles.clear();
             grid.overlapping_tiles(
-                grid::rect_from_point(next_pos, 1.0, CHAR_HEIGHT),
+                grid::rect_from_point(next_pos, PLAYER_WIDTH, PLAYER_HEIGHT),
                 &mut tiles,
             );
             for &tile in &tiles {
@@ -180,10 +189,13 @@ impl Player {
         }
 
         for &collider in &colliders {
-            let next_rect = grid::rect_from_point(next_pos, 1.0, CHAR_HEIGHT);
+            let next_rect = grid::rect_from_point(next_pos, PLAYER_WIDTH, PLAYER_HEIGHT);
             let (res_disp, res_vel) = grid::collision_resolve_vert(next_rect, self.vel, collider);
             next_pos.y += res_disp;
             self.vel = res_vel;
+            // If the displacement was vertical that means we have been pushed up
+            // out of the ground, which means we are probably grounded.
+            self.grounded = self.grounded || res_disp > 0.0;
         }
 
         next_pos.x += crate::DT * self.vel.x;
@@ -191,7 +203,7 @@ impl Player {
         for grid in grids {
             tiles.clear();
             grid.overlapping_tiles(
-                grid::rect_from_point(next_pos, 1.0, CHAR_HEIGHT),
+                grid::rect_from_point(next_pos, PLAYER_WIDTH, PLAYER_HEIGHT),
                 &mut tiles,
             );
             for &tile in &tiles {
@@ -200,30 +212,36 @@ impl Player {
         }
 
         for &collider in &colliders {
-            let next_rect = grid::rect_from_point(next_pos, 1.0, CHAR_HEIGHT);
+            let next_rect = grid::rect_from_point(next_pos, PLAYER_WIDTH, PLAYER_HEIGHT);
             let (res_disp, res_vel) = grid::collision_resolve_horiz(next_rect, self.vel, collider);
             next_pos.x += res_disp;
             self.vel = res_vel;
         }
 
         self.pos = next_pos;
+
+        // Don't let the player escape!
+        if self.pos.y + PLAYER_HEIGHT > draw::WORLD_HEIGHT {
+            self.pos.y = draw::WORLD_HEIGHT - PLAYER_HEIGHT;
+        }
+        self.pos.x = grid::clamp(0.0, draw::WORLD_WIDTH - PLAYER_WIDTH, self.pos.x);
+        // Gravity
         self.acc = Vector2::new(0.0, -20.0);
     }
 
-    pub fn draw(&self, ctx: &mut Context) -> GameResult<()> {
+    pub fn draw(&self, ctx: &mut Context, images: &Images) -> GameResult<()> {
         if !self.alive {
             return Ok(());
         }
-        graphics::set_color(
+        draw::draw_sprite(
             ctx,
-            Color {
-                r: 1.0,
-                g: 1.0,
-                b: 1.0,
-                a: 1.0,
+            &images.player,
+            DrawParam {
+                dest: self.pos,
+                color: Some(Color::new(1.0, 1.0, 1.0, 1.0)),
+                ..Default::default()
             },
         )?;
-        draw::draw(ctx, &self.mesh, self.pos, 0.0)?;
         Ok(())
     }
 
@@ -236,8 +254,8 @@ impl Player {
         Rect {
             x: self.pos.x - 0.5,
             y: self.pos.y,
-            w: 1.0,
-            h: 2.0,
+            w: PLAYER_WIDTH,
+            h: PLAYER_HEIGHT,
         }
     }
 }

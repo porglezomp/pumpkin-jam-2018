@@ -1,4 +1,7 @@
-use std::{fs, path};
+use std::{
+    io::{BufRead, BufReader},
+    path,
+};
 
 use ggez::{
     graphics::{spritebatch::SpriteBatch, Color, DrawParam, Image, Point2, Rect, Vector2},
@@ -7,8 +10,8 @@ use ggez::{
 use rand;
 use rand::Rng;
 
-use crate::draw;
-use crate::draw::WorldCoord;
+use crate::draw::{self, Batch, WorldCoord};
+use crate::Images;
 
 pub type GridCoord = usize;
 pub type GridPoint = Point2;
@@ -78,9 +81,9 @@ impl Grid {
         }
     }
 
-    pub fn draw(&mut self, ctx: &mut Context, image: Image) -> GameResult<()> {
+    pub fn draw(&mut self, ctx: &mut Context, images: &Images) -> GameResult<()> {
         use self::Tile::*;
-        let mut sprite_batch = SpriteBatch::new(image);
+        let mut batch = Batch::new(images.leaves.clone());
         for (j, row) in self.module.iter().enumerate() {
             for (i, tile) in row.iter().enumerate() {
                 match *tile {
@@ -90,17 +93,15 @@ impl Grid {
                         if health == 0 {
                             continue;
                         }
-                        let draw_param = DrawParam {
+                        batch.add(DrawParam {
                             dest: Point2::new(TILE_SIZE * i as f32, TILE_SIZE * j as f32),
                             color: Some(color_lerp(
-                                RED,
-                                WHITE,
+                                BROKEN,
+                                HEALTHY,
                                 (health - 1) as f32 / (TILE_MAX_HEALTH - 1) as f32,
                             )),
-                            scale: Point2::new(1.0 / 32.0, 1.0 / 32.0),
                             ..Default::default()
-                        };
-                        sprite_batch.add(draw_param);
+                        });
                     }
                 }
             }
@@ -109,7 +110,7 @@ impl Grid {
             dest: self.world_offset,
             ..Default::default()
         };
-        draw::draw_ex(ctx, &sprite_batch, param)?;
+        batch.draw(ctx, param)?;
         Ok(())
     }
 
@@ -188,7 +189,7 @@ impl Grid {
     }
 }
 
-fn clamp(lower: f32, upper: f32, n: f32) -> f32 {
+pub fn clamp(lower: f32, upper: f32, n: f32) -> f32 {
     if upper < n {
         return upper;
     } else if lower > n {
@@ -288,10 +289,14 @@ fn total_tiles(module: Module) -> usize {
     total_tiles
 }
 
-pub fn parse_modules_file(path: &path::Path) -> Result<Vec<Module>, String> {
-    let contents = &fs::read_to_string(path).unwrap();
+pub fn parse_modules_file<P: AsRef<path::Path>>(
+    ctx: &mut Context,
+    path: P,
+) -> GameResult<Vec<Module>> {
+    let file = ctx.filesystem.open(path)?;
+    // let contents = &fs::read_to_string(path).unwrap();
     let mut modules_list = vec![];
-    let lines: Vec<&str> = contents.lines().collect();
+    let lines: Vec<String> = BufReader::new(file).lines().collect::<Result<_, _>>()?;
 
     for module in lines.chunks(9) {
         // last line in file, stop parsing
@@ -334,17 +339,17 @@ pub enum Tile {
     Solid(u8),
 }
 
-pub const WHITE: Color = Color {
-    r: 1.0,
-    g: 1.0,
-    b: 1.0,
+pub const HEALTHY: Color = Color {
+    r: 0.8,
+    g: 0.5,
+    b: 0.2,
     a: 1.0,
 };
 
-pub const RED: Color = Color {
-    r: 1.0,
-    g: 0.0,
-    b: 0.0,
+pub const BROKEN: Color = Color {
+    r: 0.3,
+    g: 0.2,
+    b: 0.2,
     a: 1.0,
 };
 
