@@ -6,9 +6,11 @@ use ggez::{
 
 use crate::bullet::Bullet;
 
+use crate::collide;
 use crate::draw;
 use crate::grid;
 use crate::images::Images;
+use crate::math;
 
 pub const PLAYER_MAX_HEALTH: u8 = 3;
 pub const PLAYER_HEIGHT: f32 = 0.8;
@@ -180,7 +182,7 @@ impl Player {
         for grid in grids {
             tiles.clear();
             grid.overlapping_tiles(
-                grid::rect_from_point(next_pos, PLAYER_WIDTH, PLAYER_HEIGHT),
+                math::rect_from_point(next_pos, PLAYER_WIDTH, PLAYER_HEIGHT),
                 &mut tiles,
             );
             for &tile in &tiles {
@@ -189,8 +191,9 @@ impl Player {
         }
 
         for &collider in &colliders {
-            let next_rect = grid::rect_from_point(next_pos, PLAYER_WIDTH, PLAYER_HEIGHT);
-            let (res_disp, res_vel) = grid::collision_resolve_vert(next_rect, self.vel, collider);
+            let next_rect = math::rect_from_point(next_pos, PLAYER_WIDTH, PLAYER_HEIGHT);
+            let (res_disp, res_vel) =
+                collide::collision_resolve_vert(next_rect, self.vel, collider);
             next_pos.y += res_disp;
             self.vel = res_vel;
             // If the displacement was vertical that means we have been pushed up
@@ -203,7 +206,7 @@ impl Player {
         for grid in grids {
             tiles.clear();
             grid.overlapping_tiles(
-                grid::rect_from_point(next_pos, PLAYER_WIDTH, PLAYER_HEIGHT),
+                math::rect_from_point(next_pos, PLAYER_WIDTH, PLAYER_HEIGHT),
                 &mut tiles,
             );
             for &tile in &tiles {
@@ -212,8 +215,9 @@ impl Player {
         }
 
         for &collider in &colliders {
-            let next_rect = grid::rect_from_point(next_pos, PLAYER_WIDTH, PLAYER_HEIGHT);
-            let (res_disp, res_vel) = grid::collision_resolve_horiz(next_rect, self.vel, collider);
+            let next_rect = math::rect_from_point(next_pos, PLAYER_WIDTH, PLAYER_HEIGHT);
+            let (res_disp, res_vel) =
+                collide::collision_resolve_horiz(next_rect, self.vel, collider);
             next_pos.x += res_disp;
             self.vel = res_vel;
         }
@@ -224,7 +228,7 @@ impl Player {
         if self.pos.y + PLAYER_HEIGHT > draw::WORLD_HEIGHT {
             self.pos.y = draw::WORLD_HEIGHT - PLAYER_HEIGHT;
         }
-        self.pos.x = grid::clamp(0.0, draw::WORLD_WIDTH - PLAYER_WIDTH, self.pos.x);
+        self.pos.x = math::clamp(0.0, draw::WORLD_WIDTH - PLAYER_WIDTH, self.pos.x);
         // Gravity
         self.acc = Vector2::new(0.0, -20.0);
     }
