@@ -69,7 +69,7 @@ impl Bullet {
                         grid.damage_tile(x, y);
                         self.is_alive = false;
                     }
-                    Tile::Start => {
+                    Tile::Start(_) => {
                         if let Some(player) = &mut players[self.team.0 as usize] {
                             if in_menu {
                                 player.ready = !player.ready;

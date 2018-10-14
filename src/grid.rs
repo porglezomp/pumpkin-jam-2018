@@ -4,7 +4,7 @@ use std::{
 };
 
 use ggez::{
-    graphics::{Color, DrawParam, Point2, Vector2},
+    graphics::{DrawParam, Point2, Vector2},
     Context, GameResult,
 };
 use rand;
@@ -102,11 +102,10 @@ impl Grid {
                 let dest = Point2::new(TILE_SIZE * i as f32, TILE_SIZE * j as f32);
                 match *tile {
                     Air => continue,
-                    Tile::Start => batch.add(
-                        0,
+                    Tile::Start(idx) => batch.add(
+                        17 + idx as usize,
                         DrawParam {
                             dest,
-                            color: Some(Color::new(0.0, 1.0, 1.0, 1.0)),
                             ..Default::default()
                         },
                     ),
@@ -157,7 +156,7 @@ impl Grid {
                     self.module[y][x] = Tile::Air;
                 }
             }
-            Leave | Start | Air => (),
+            Leave | Start(_) | Air => (),
         }
     }
 
@@ -221,7 +220,7 @@ impl Grid {
             h: 0.0,
         };
         match tile.0 {
-            Start | Solid(_) => {
+            Start(_) | Solid(_) => {
                 let tile_point = self.to_world_coords((tile.1, tile.2));
                 math::rect_from_point(tile_point, TILE_SIZE, TILE_SIZE)
             }
@@ -303,7 +302,9 @@ fn text_to_row(row: &str) -> Result<[Tile; GRID_WIDTH], String> {
     let mut tiles = [Tile::Air; GRID_WIDTH];
     for (i, character) in row.trim_right().chars().enumerate() {
         match character {
-            '!' => tiles[i] = Tile::Start,
+            '[' => tiles[i] = Tile::Start(0),
+            '!' => tiles[i] = Tile::Start(1),
+            ']' => tiles[i] = Tile::Start(2),
             '?' => tiles[i] = Tile::Leave,
             '#' => tiles[i] = Tile::Solid(TILE_MAX_HEALTH),
             ' ' => tiles[i] = Tile::Air,
@@ -322,6 +323,6 @@ fn text_to_row(row: &str) -> Result<[Tile; GRID_WIDTH], String> {
 pub enum Tile {
     Air,
     Solid(u8),
-    Start,
+    Start(u8),
     Leave,
 }
