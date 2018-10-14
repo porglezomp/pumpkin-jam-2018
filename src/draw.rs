@@ -1,6 +1,5 @@
 use ggez::{
-    graphics,
-    graphics::{spritebatch::SpriteBatch, DrawParam, Drawable, Image, Point2, Vector2},
+    graphics::{self, spritebatch::SpriteBatch, DrawParam, Drawable, Image, Point2, Rect, Vector2},
     Context, GameResult,
 };
 
@@ -17,17 +16,30 @@ const PIX: f32 = 1.5;
 
 pub struct Batch {
     batch: SpriteBatch,
+    width: usize,
+    height: usize,
 }
 
 impl Batch {
     pub fn new(image: Image) -> Self {
+        Self::atlas(image, 1, 1)
+    }
+
+    pub fn atlas(image: Image, width: usize, height: usize) -> Self {
         Batch {
             batch: SpriteBatch::new(image),
+            width,
+            height,
         }
     }
 
-    pub fn add(&mut self, param: DrawParam) {
+    pub fn add(&mut self, idx: usize, param: DrawParam) {
+        let w = 1.0 / self.width as f32;
+        let h = 1.0 / self.height as f32;
+        let x = (idx % self.width) as f32 * w;
+        let y = (idx % self.height) as f32 * h;
         let param = DrawParam {
+            src: Rect { x, y, w, h },
             offset: Point2::new(0.0, 0.5),
             scale: Point2::new(
                 PIX / SCALE_X * param.scale.x,

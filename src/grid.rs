@@ -4,7 +4,7 @@ use std::{
 };
 
 use ggez::{
-    graphics::{Color, DrawParam, Point2, Vector2},
+    graphics::{Color, DrawParam, Point2, Rect, Vector2},
     Context, GameResult,
 };
 use rand;
@@ -93,15 +93,18 @@ impl Grid {
                         if health == 0 {
                             continue;
                         }
-                        batch.add(DrawParam {
-                            dest: Point2::new(TILE_SIZE * i as f32, TILE_SIZE * j as f32),
-                            color: Some(color_lerp(
-                                BROKEN,
-                                HEALTHY,
-                                (health - 1) as f32 / (TILE_MAX_HEALTH - 1) as f32,
-                            )),
-                            ..Default::default()
-                        });
+                        batch.add(
+                            0,
+                            DrawParam {
+                                dest: Point2::new(TILE_SIZE * i as f32, TILE_SIZE * j as f32),
+                                color: Some(color_lerp(
+                                    BROKEN,
+                                    HEALTHY,
+                                    (health - 1) as f32 / (TILE_MAX_HEALTH - 1) as f32,
+                                )),
+                                ..Default::default()
+                            },
+                        );
                     }
                 }
             }
