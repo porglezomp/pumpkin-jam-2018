@@ -2,6 +2,9 @@ use std::io::Read;
 
 use ggez::{Context, GameResult};
 
+use crate::draw::WorldCoord;
+use crate::grid::GridCoord;
+
 const CONFIG_FILE: &str = "/config.toml";
 
 macro_rules! config {
@@ -71,4 +74,12 @@ config! {
         shoot_offset_y: f32 = 0.8 / 1.5,
         jump_power: f32 = 16.0,
     };
+
+    config GRID: grid = Grid {
+        tile_max_health: u8 = 4,
+        falling_accel: f32 = -25.0,
+        death_threshold: f32 = 0.95,
+        no_spawn_threshold: f32 = 0.5,
+    };
+
 }

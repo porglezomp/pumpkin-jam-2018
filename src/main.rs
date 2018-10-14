@@ -13,7 +13,7 @@ use ggez::{
 use rand::{thread_rng, Rng};
 
 use crate::bullet::Bullet;
-use crate::config::{PLAYER, TEAM};
+use crate::config::{GRID, PLAYER, TEAM};
 use crate::grid::{Grid, GridState, Module};
 use crate::images::Images;
 use crate::player::{Axis, Button, Controls, Player, Team};
@@ -213,8 +213,7 @@ impl ggez::event::EventHandler for MainState {
                     for i in indicies {
                         // Avoid spawning on the lowest grid if too damanged
                         // (might be instant death!)
-                        if i == 0 && self.grids[0].percent_tiles_alive() < grid::NO_SPAWN_THRESHOLD
-                        {
+                        if i == 0 && self.grids[0].percent_tiles_alive() < GRID.no_spawn_threshold {
                             continue;
                         }
                         if player.respawn(&self.grids[i]) {
