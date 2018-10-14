@@ -53,40 +53,24 @@ impl Grid {
         self.world_offset.y
     }
 
-    pub fn fixed_update(&mut self) {
-        use self::GridState::*;
+    pub fn fixed_update(&mut self, goal_height: f32) {
+        if self.world_offset.y > goal_height + GRID.gap {
+            self.acc = Vector2::new(0.0, GRID.falling_accel);
+        }
+
         self.vel += self.acc * crate::DT;
         self.world_offset += self.vel * crate::DT;
 
-        match self.state {
-            AliveFalling(goal_height) | DeadFalling(goal_height) => {
-                if self.world_offset.y < goal_height {
-                    self.world_offset.y = goal_height;
-                    self.state = GridState::Alive;
-                    self.vel = Vector2::new(0.0, 0.0);
-                    self.acc = Vector2::new(0.0, 0.0);
-                }
-            }
-            Alive | Dead => (),
+        if self.world_offset.y < goal_height {
+            self.world_offset.y = goal_height;
+            self.vel = Vector2::new(0.0, 0.0);
+            self.acc = Vector2::new(0.0, 0.0);
         }
     }
 
-    pub fn update(&mut self, grid_below: Option<&Grid>) {
-        use self::GridState::*;
-
-        if self.percent_tiles_alive() < GRID.death_threshold && self.state == Alive {
-            self.state = Dead;
-        }
-        const GRID_HEIGHT_F32: f32 = TILE_SIZE * GRID_HEIGHT as f32;
-        if let Some(grid_below) = grid_below {
-            match (&self.state, &grid_below.state) {
-                (Alive, AliveFalling(goal_height)) | (Alive, DeadFalling(goal_height)) => {
-                    if self.height() - grid_below.height() > 0.5 * TILE_SIZE + GRID_HEIGHT_F32 {
-                        self.fall(goal_height + GRID_HEIGHT_F32);
-                    }
-                }
-                _ => (),
-            }
+    pub fn update(&mut self) {
+        if self.percent_tiles_alive() < GRID.death_threshold {
+            self.state = GridState::Dead;
         }
     }
 
@@ -156,16 +140,6 @@ impl Grid {
         }
     }
 
-    pub fn fall(&mut self, goal_height: WorldCoord) {
-        use self::GridState::*;
-        self.state = match self.state {
-            Alive => AliveFalling(goal_height),
-            Dead => DeadFalling(goal_height),
-            _ => unreachable!(),
-        };
-        self.acc = Vector2::new(0.0, GRID.falling_accel);
-    }
-
     pub fn percent_tiles_alive(&self) -> f32 {
         self.tiles_alive as f32 / self.total_tiles as f32
     }
@@ -229,8 +203,6 @@ impl Grid {
 #[derive(PartialEq)]
 pub enum GridState {
     Alive,
-    AliveFalling(WorldCoord), // Stores the target height to get to
-    DeadFalling(WorldCoord),  // Stores the target height to get to
     Dead,
 }
 

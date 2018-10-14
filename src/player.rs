@@ -176,7 +176,7 @@ impl Player {
 
         self.acc.x += self.control_state.lr / crate::DT;
 
-        if self.pos.y < -2.0 {
+        if self.pos.y < -1.0 {
             self.damage();
         }
     }
