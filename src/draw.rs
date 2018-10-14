@@ -21,10 +21,6 @@ pub struct Batch {
 }
 
 impl Batch {
-    pub fn new(image: Image) -> Self {
-        Self::atlas(image, 1, 1)
-    }
-
     pub fn atlas(image: Image, width: usize, height: usize) -> Self {
         Batch {
             batch: SpriteBatch::new(image),
@@ -37,7 +33,7 @@ impl Batch {
         let w = 1.0 / self.width as f32;
         let h = 1.0 / self.height as f32;
         let x = (idx % self.width) as f32 * w;
-        let y = (idx / self.height) as f32 * h;
+        let y = (idx / self.width) as f32 * h;
         let param = DrawParam {
             src: Rect { x, y, w, h },
             offset: Point2::new(0.0, 0.5),
