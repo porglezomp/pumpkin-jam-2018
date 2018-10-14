@@ -4,7 +4,7 @@ use std::{
 };
 
 use ggez::{
-    graphics::{Color, DrawParam, Point2, Rect, Vector2},
+    graphics::{Color, DrawParam, Point2, Vector2},
     Context, GameResult,
 };
 use rand;
@@ -21,7 +21,7 @@ pub type GridCoord = usize;
 pub const GRID_WIDTH: GridCoord = 32;
 pub const GRID_HEIGHT: GridCoord = 8;
 pub const TILE_SIZE: WorldCoord = 1.0f32;
-pub const TILE_MAX_HEALTH: u8 = 5;
+pub const TILE_MAX_HEALTH: u8 = 3;
 const GRID_TO_WORLD: f32 = TILE_SIZE as f32 * draw::WORLD_WIDTH / GRID_WIDTH as f32;
 
 pub const DEATH_THRESHOLD: f32 = 0.25;

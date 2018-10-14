@@ -4,6 +4,7 @@ use ggez::{
 };
 
 use crate::draw;
+use crate::grid::{Grid, Tile};
 use crate::images::Images;
 use crate::player::{Player, Team};
 
@@ -37,7 +38,11 @@ impl Bullet {
         }
     }
 
-    pub fn fixed_update<'a>(&mut self, players: impl Iterator<Item = &'a mut Player>) {
+    pub fn fixed_update<'a>(
+        &mut self,
+        grids: &mut [Grid],
+        players: impl Iterator<Item = &'a mut Player>,
+    ) {
         self.pos += crate::DT * self.vel;
 
         if self.pos.x < -1.0 || self.pos.x > 33.0 {
@@ -48,6 +53,21 @@ impl Bullet {
             if self.rect().overlaps(&player.rect()) && self.team != player.team {
                 player.damage();
                 self.is_alive = false;
+            }
+        }
+
+        for grid in grids {
+            let mut tiles = Vec::new();
+            grid.overlapping_tiles(self.rect(), &mut tiles);
+            for (tile, x, y) in tiles {
+                match tile {
+                    Tile::Solid(_) => {
+                        grid.damage_tile(x, y);
+                        grid.damage_tile(x, y);
+                        self.is_alive = false;
+                    }
+                    _ => (),
+                }
             }
         }
     }

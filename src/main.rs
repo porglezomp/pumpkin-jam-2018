@@ -210,7 +210,7 @@ impl ggez::event::EventHandler for MainState {
             }
 
             for bullet in &mut self.bullets {
-                bullet.fixed_update(somes_mut(&mut self.players));
+                bullet.fixed_update(&mut self.grids, somes_mut(&mut self.players));
             }
 
             self.bullets.retain(|bullet| bullet.is_alive);
@@ -241,18 +241,17 @@ impl ggez::event::EventHandler for MainState {
                 }
             }
 
-            self.grids[0].damage_tile(
-                thread_rng().gen_range(0, grid::GRID_WIDTH),
-                thread_rng().gen_range(0, grid::GRID_HEIGHT),
-            );
-            self.grids[0].damage_tile(
-                thread_rng().gen_range(0, grid::GRID_WIDTH),
-                thread_rng().gen_range(0, grid::GRID_HEIGHT),
-            );
-            self.grids[0].damage_tile(
-                thread_rng().gen_range(0, grid::GRID_WIDTH),
-                thread_rng().gen_range(0, grid::GRID_HEIGHT),
-            );
+            if thread_rng().gen_bool(0.2) {
+                let grid_id = *thread_rng()
+                    .choose(&[
+                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2,
+                    ])
+                    .unwrap();
+                self.grids[grid_id].damage_tile(
+                    thread_rng().gen_range(0, grid::GRID_WIDTH),
+                    thread_rng().gen_range(0, grid::GRID_HEIGHT),
+                );
+            }
         }
 
         timer::yield_now();

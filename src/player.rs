@@ -15,6 +15,8 @@ use crate::math;
 pub const PLAYER_MAX_HEALTH: u8 = 3;
 pub const PLAYER_HEIGHT: f32 = 0.8;
 pub const PLAYER_WIDTH: f32 = 0.8;
+pub const SHOOT_OFFSET_X: f32 = PLAYER_WIDTH / 1.5;
+pub const SHOOT_OFFSET_Y: f32 = PLAYER_HEIGHT / 1.5;
 pub const JUMP_POWER: f32 = 16.0;
 pub const TEAM_COLORS: [Color; 4] = [
     Color {
@@ -148,7 +150,9 @@ impl Player {
 
         if self.control_state.shoot && self.cooldown <= 0.0 {
             bullets.push(Bullet::new(
-                self.pos + Vector2::new(self.control_state.facing * 0.6, 1.0),
+                self.pos
+                    + Vector2::new(PLAYER_WIDTH / 2.0, 0.0)
+                    + Vector2::new(self.control_state.facing * SHOOT_OFFSET_X, SHOOT_OFFSET_Y),
                 Vector2::new(self.control_state.facing * 30.0, 0.0),
                 self.team,
             ));
