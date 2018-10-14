@@ -21,10 +21,6 @@ pub struct Batch {
 }
 
 impl Batch {
-    pub fn new(image: Image) -> Self {
-        Self::atlas(image, 1, 1)
-    }
-
     pub fn atlas(image: Image, width: usize, height: usize) -> Self {
         Batch {
             batch: SpriteBatch::new(image),

@@ -292,28 +292,34 @@ impl ggez::event::EventHandler for MainState {
         struct MenuInfo {
             join_pos: Point2,
             heart_pos: Point2,
+            ready_pos: Point2,
         }
 
         let menu_info = [
             MenuInfo {
                 join_pos: Point2::new(draw::WORLD_WIDTH - 9.0, 1.0),
                 heart_pos: Point2::new(draw::WORLD_WIDTH - 3.0, 1.0),
+                ready_pos: Point2::new(draw::WORLD_WIDTH - 4.5, 2.0),
             },
             MenuInfo {
                 join_pos: Point2::new(1.0, 1.0),
                 heart_pos: Point2::new(1.0, 1.0),
+                ready_pos: Point2::new(0.5, 2.0),
             },
             MenuInfo {
                 join_pos: Point2::new(1.0, draw::WORLD_HEIGHT - 3.0),
                 heart_pos: Point2::new(1.0, draw::WORLD_HEIGHT - 2.0),
+                ready_pos: Point2::new(0.5, draw::WORLD_HEIGHT - 3.0),
             },
             MenuInfo {
                 join_pos: Point2::new(draw::WORLD_WIDTH - 9.0, draw::WORLD_HEIGHT - 3.0),
                 heart_pos: Point2::new(draw::WORLD_WIDTH - 3.0, draw::WORLD_HEIGHT - 2.0),
+                ready_pos: Point2::new(draw::WORLD_WIDTH - 4.5, draw::WORLD_HEIGHT - 3.0),
             },
         ];
 
         let mut hearts = draw::Batch::atlas(self.images.heart.clone(), 2, 1);
+        let mut ready = draw::Batch::atlas(self.images.ready.clone(), 1, 1);
         let a = if time % 1.5 < 0.8 { 1.0 } else { 0.25 };
         for ((player, info), &color) in self
             .players
@@ -333,6 +339,16 @@ impl ggez::event::EventHandler for MainState {
                             ..Default::default()
                         },
                     );
+                    if self.in_menu && player.ready {
+                        ready.add(
+                            0,
+                            DrawParam {
+                                dest: info.ready_pos,
+                                color: Some(color),
+                                ..Default::default()
+                            },
+                        );
+                    }
                 }
             } else {
                 if self.in_menu {
@@ -348,6 +364,7 @@ impl ggez::event::EventHandler for MainState {
                 }
             }
         }
+        ready.draw(ctx, Default::default())?;
         hearts.draw(ctx, Default::default())?;
 
         graphics::present(ctx);
