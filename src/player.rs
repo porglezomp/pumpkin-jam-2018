@@ -1,6 +1,6 @@
 use ggez::{
     event,
-    graphics::{Color, DrawParam, Point2, Rect, Vector2},
+    graphics::{DrawParam, Point2, Rect, Vector2},
     Context, GameResult,
 };
 
@@ -8,7 +8,7 @@ use crate::bullet::Bullet;
 use crate::sound::{Sound, SoundEffect};
 
 use crate::collide;
-use crate::config::PLAYER;
+use crate::config::{PLAYER, TEAM};
 use crate::draw;
 use crate::grid;
 use crate::images::Images;
@@ -247,7 +247,7 @@ impl Player {
             &images.player,
             DrawParam {
                 dest: self.pos,
-                color: Some(Color::new(1.0, 1.0, 1.0, 1.0)),
+                color: Some(TEAM.colors[self.team.0 as usize].into()),
                 ..Default::default()
             },
         )?;
