@@ -21,7 +21,7 @@ pub type GridCoord = usize;
 pub const GRID_WIDTH: GridCoord = 32;
 pub const GRID_HEIGHT: GridCoord = 8;
 pub const TILE_SIZE: WorldCoord = 1.0f32;
-pub const TILE_MAX_HEALTH: u8 = 3;
+pub const TILE_MAX_HEALTH: u8 = 4;
 const GRID_TO_WORLD: f32 = TILE_SIZE as f32 * draw::WORLD_WIDTH / GRID_WIDTH as f32;
 
 pub const GRID_FALLING_ACCEL: f32 = -25.0;
@@ -96,7 +96,7 @@ impl Grid {
 
     pub fn draw(&mut self, ctx: &mut Context, images: &Images) -> GameResult<()> {
         use self::Tile::*;
-        let mut batch = Batch::new(images.leaves.clone());
+        let mut batch = Batch::atlas(images.tiles.clone(), 16, 16);
         for (j, row) in self.module.iter().enumerate() {
             for (i, tile) in row.iter().enumerate() {
                 let dest = Point2::new(TILE_SIZE * i as f32, TILE_SIZE * j as f32);
@@ -123,15 +123,12 @@ impl Grid {
                         if health == 0 {
                             continue;
                         }
+
+                        let idx = (0 + (TILE_MAX_HEALTH - health)) as usize;
                         batch.add(
-                            0,
+                            idx,
                             DrawParam {
                                 dest,
-                                color: Some(color_lerp(
-                                    BROKEN,
-                                    HEALTHY,
-                                    (health - 1) as f32 / (TILE_MAX_HEALTH - 1) as f32,
-                                )),
                                 ..Default::default()
                             },
                         );
