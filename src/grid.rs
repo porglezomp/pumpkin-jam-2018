@@ -111,10 +111,9 @@ impl Grid {
                         },
                     ),
                     Tile::Leave => batch.add(
-                        0,
+                        16,
                         DrawParam {
                             dest,
-                            color: Some(Color::new(1.0, 0.0, 1.0, 1.0)),
                             ..Default::default()
                         },
                     ),
@@ -215,11 +214,18 @@ impl Grid {
 
     pub fn to_world_collider(&self, tile: (Tile, usize, usize)) -> WorldRect {
         use self::Tile::*;
+        const NO_RECT: WorldRect = WorldRect {
+            x: -100.0,
+            y: -100.0,
+            w: 0.0,
+            h: 0.0,
+        };
         match tile.0 {
-            Start | Leave | Solid(_) => {
+            Start | Solid(_) => {
                 let tile_point = self.to_world_coords((tile.1, tile.2));
                 math::rect_from_point(tile_point, TILE_SIZE, TILE_SIZE)
             }
+            Leave => NO_RECT,
             Air => unreachable!(),
         }
     }
@@ -318,32 +324,4 @@ pub enum Tile {
     Solid(u8),
     Start,
     Leave,
-}
-
-pub const HEALTHY: Color = Color {
-    r: 0.8,
-    g: 0.5,
-    b: 0.2,
-    a: 1.0,
-};
-
-pub const BROKEN: Color = Color {
-    r: 0.3,
-    g: 0.2,
-    b: 0.2,
-    a: 1.0,
-};
-
-// todo : make this not stupid
-pub fn color_lerp(a: Color, b: Color, t: f32) -> Color {
-    fn f32_lerp(a: f32, b: f32, t: f32) -> f32 {
-        a + (b - a) * t
-    }
-
-    Color::new(
-        f32_lerp(a.r, b.r, t),
-        f32_lerp(a.g, b.g, t),
-        f32_lerp(a.b, b.b, t),
-        f32_lerp(a.a, b.a, t),
-    )
 }
