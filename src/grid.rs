@@ -24,7 +24,7 @@ pub const TILE_SIZE: WorldCoord = 1.0f32;
 pub const TILE_MAX_HEALTH: u8 = 5;
 const GRID_TO_WORLD: f32 = TILE_SIZE as f32 * draw::WORLD_WIDTH / GRID_WIDTH as f32;
 
-pub const GRID_FALLING_VELOCITY: f32 = -15.0;
+pub const GRID_FALLING_ACCEL: f32 = -25.0;
 pub const DEATH_THRESHOLD: f32 = 0.95;
 pub const NO_SPAWN_THRESHOLD: f32 = 0.5;
 
@@ -36,6 +36,7 @@ pub struct Grid {
     total_tiles: usize, // Number of tiles alive at the start
     tiles_alive: usize, // Number of tiles still currently alive
     pub vel: Vector2,
+    acc: Vector2,
 }
 
 impl Grid {
@@ -48,11 +49,30 @@ impl Grid {
             total_tiles: total_tiles,
             tiles_alive: total_tiles,
             vel: Vector2::new(0.0, 0.0),
+            acc: Vector2::new(0.0, 0.0),
         }
     }
 
     pub fn height(&self) -> f32 {
         self.world_offset.y
+    }
+
+    pub fn fixed_update(&mut self) {
+        use self::GridState::*;
+        self.vel += self.acc * crate::DT;
+        self.world_offset += self.vel * crate::DT;
+
+        match self.state {
+            AliveFalling(goal_height) | DeadFalling(goal_height) => {
+                if self.world_offset.y < goal_height {
+                    self.world_offset.y = goal_height;
+                    self.state = GridState::Alive;
+                    self.vel = Vector2::new(0.0, 0.0);
+                    self.acc = Vector2::new(0.0, 0.0);
+                }
+            }
+            Alive | Dead => (),
+        }
     }
 
     pub fn update(&mut self, grid_below: Option<&Grid>) {
@@ -65,25 +85,11 @@ impl Grid {
         if let Some(grid_below) = grid_below {
             match (&self.state, &grid_below.state) {
                 (Alive, AliveFalling(goal_height)) | (Alive, DeadFalling(goal_height)) => {
-                    if self.height() - grid_below.height() > 2.0 * TILE_SIZE + GRID_HEIGHT_F32 {
+                    if self.height() - grid_below.height() > 0.5 * TILE_SIZE + GRID_HEIGHT_F32 {
                         self.fall(goal_height + GRID_HEIGHT_F32);
                     }
                 }
                 _ => (),
-            }
-        }
-
-        match self.state {
-            AliveFalling(goal_height) | DeadFalling(goal_height) => {
-                self.world_offset += self.vel * crate::DT;
-                if self.world_offset.y - goal_height < 0.1 {
-                    self.world_offset.y = goal_height;
-                    self.state = GridState::Alive;
-                    self.vel = Vector2::new(0.0, 0.0);
-                }
-            }
-            Alive | Dead => {
-                self.vel = Vector2::new(0.0, 0.0);
             }
         }
     }
@@ -149,7 +155,7 @@ impl Grid {
             Dead => DeadFalling(goal_height),
             _ => unreachable!(),
         };
-        self.vel = Vector2::new(0.0, GRID_FALLING_VELOCITY);
+        self.acc = Vector2::new(0.0, GRID_FALLING_ACCEL);
     }
 
     pub fn percent_tiles_alive(&self) -> f32 {
