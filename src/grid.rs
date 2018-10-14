@@ -4,7 +4,7 @@ use std::{
 };
 
 use ggez::{
-    graphics::{DrawParam, Point2, Vector2},
+    graphics::{Color, DrawParam, Point2, Vector2},
     Context, GameResult,
 };
 use rand;
@@ -235,19 +235,24 @@ pub enum GridState {
 }
 
 pub fn find_spawn_location(module: Module) -> Option<(GridCoord, GridCoord)> {
-    let mut columns: Vec<usize> = (0..GRID_WIDTH).collect();
+    let mut columns: Vec<usize> = (1..GRID_WIDTH - 1).collect();
     rand::thread_rng().shuffle(&mut columns);
-    for col in columns {
-        for row in 0..(GRID_HEIGHT - 2) {
-            let ground_tile = if let Tile::Solid(_) = module[row][col] {
-                true
+    for x in columns {
+        for y in 0..(GRID_HEIGHT - 2) {
+            let mut good_location = true;
+            for i in x - 1..=x + 1 {
+                let ground_tile = module[y][i] != Tile::Air;
+                let tile_above = module[y + 1][i] == Tile::Air;
+                let tile_two_above = module[y + 2][i] == Tile::Air;
+                if !(ground_tile && tile_above && tile_two_above) {
+                    good_location = false;
+                }
+            }
+
+            if good_location {
+                return Some((x, y));
             } else {
-                false
-            };
-            let tile_above = module[row + 1][col] == Tile::Air;
-            let tile_two_above = module[row + 2][col] == Tile::Air;
-            if ground_tile && tile_above && tile_two_above {
-                return Some((row, col));
+                continue;
             }
         }
     }

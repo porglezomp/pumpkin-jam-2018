@@ -5,12 +5,17 @@ use ggez::{
 };
 
 use crate::bullet::Bullet;
+use crate::sound::{Sound, SoundEffect};
+
 use crate::collide;
 use crate::config::PLAYER;
 use crate::draw;
 use crate::grid;
 use crate::images::Images;
 use crate::math;
+
+pub const JUMP_POWER: f32 = 16.0;
+pub const SECOND_JUMP_POWER: f32 = 16.0;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct Team(pub u8);
@@ -37,7 +42,9 @@ pub struct Controls {
 #[derive(Copy, Clone, Debug, Default)]
 pub struct ControlState {
     pub lr: f32,
-    pub jump: bool,
+    pub jump: bool,            // Updated every jump event (edge up and edge down)
+    pub this_jump_frame: bool, // Updated every frame
+    pub last_jump_frame: bool, // Updated every frame
     pub shoot: bool,
     pub l_pressed: bool,
     pub r_pressed: bool,
@@ -57,6 +64,8 @@ pub struct Player {
     pub cooldown: f32,
     pub alive: bool,
     pub grounded: bool,
+    pub frames_since_grounded: u8,
+    jump: JumpState,
     pub ready: bool,
 }
 
@@ -73,8 +82,10 @@ impl Player {
             lives: PLAYER.max_lives,
             cooldown: 0.0,
             alive: false,
-            grounded: false,
+            frames_since_grounded: 0,
+            grounded: true,
             ready: false,
+            jump: JumpState::Double,
         }
     }
 
@@ -111,16 +122,46 @@ impl Player {
         true
     }
 
-    pub fn update(&mut self, bullets: &mut Vec<Bullet>) {
+    pub fn update(&mut self, ctx: &mut Context, bullets: &mut Vec<Bullet>, sounds: &mut Sound) {
         if !self.alive {
             return;
         }
 
+        self.control_state.last_jump_frame = self.control_state.this_jump_frame;
+        self.control_state.this_jump_frame = self.control_state.jump;
         self.controls();
 
-        if self.grounded && self.control_state.jump {
-            self.acc.y = PLAYER.jump_power / crate::DT;
-            self.grounded = false;
+        use self::JumpState::*;
+        // Want to jump (rising jump edge)
+        if !self.control_state.last_jump_frame && self.control_state.this_jump_frame {
+            self.jump = match self.jump {
+                Double => {
+                    self.acc.y = JUMP_POWER / crate::DT;
+                    self.grounded = false;
+                    sounds.play_sound(ctx, SoundEffect::Jump);
+                    Single
+                }
+                Single => {
+                    self.acc.y = SECOND_JUMP_POWER / crate::DT;
+                    self.grounded = false;
+                    sounds.play_sound(ctx, SoundEffect::SecondJump);
+                    None
+                }
+                None => None,
+            }
+        }
+
+        // Transition from air to grounded
+        if self.grounded && self.frames_since_grounded > 3 {
+            self.jump = JumpState::Double;
+            sounds.play_sound(ctx, SoundEffect::Land);
+        }
+
+        // Transition from grounded to air
+        if !self.grounded && self.frames_since_grounded > 3 {
+            if self.jump == JumpState::Double {
+                self.jump = JumpState::Single;
+            }
         }
 
         if self.control_state.shoot && self.cooldown <= 0.0 {
@@ -133,6 +174,7 @@ impl Player {
                 self.team,
             ));
             self.cooldown = 0.3;
+            sounds.play_sound(ctx, SoundEffect::Shoot);
         }
 
         self.acc.x += self.control_state.lr / crate::DT;
@@ -167,6 +209,12 @@ impl Player {
             collide::resolve_colliders_vert(next_rect, self.vel, &colliders);
         next_pos.y += res_disp_y;
         self.vel = res_vel_y;
+
+        self.frames_since_grounded = if self.grounded {
+            0
+        } else {
+            self.frames_since_grounded.saturating_add(1)
+        };
         // If the displacement was vertical that means we have been pushed up
         // out of the ground, which means we are probably grounded.
         self.grounded = res_disp_y > 0.0;
@@ -232,4 +280,11 @@ impl Player {
             h: PLAYER.height,
         }
     }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+enum JumpState {
+    Double,
+    Single,
+    None,
 }
