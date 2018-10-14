@@ -58,6 +58,13 @@ const ARROW_CONTROLS: Controls = Controls {
 const DT: f32 = 1.0 / 60.0;
 const MODULES_PATH: &str = "/modules.txt";
 
+#[derive(PartialEq)]
+enum MenuPhase {
+    InMenu,
+    DropMenu,
+    InGame,
+}
+
 struct MainState {
     focused: bool,
     in_menu: bool,
@@ -68,6 +75,7 @@ struct MainState {
     bullets: Vec<Bullet>,
     images: Images,
     sounds: Sound,
+    menu_phase: MenuPhase,
 }
 
 fn somes_mut<'a, T: 'a>(
@@ -99,6 +107,7 @@ impl MainState {
             bullets: Vec::with_capacity(20),
             images,
             sounds,
+            menu_phase: MenuPhase::InMenu,
         })
     }
 
@@ -195,7 +204,31 @@ impl ggez::event::EventHandler for MainState {
             }
             if ready && player_count >= 2 {
                 self.in_menu = false;
+                self.menu_phase = MenuPhase::DropMenu;
+                for grid in &mut self.grids {
+                    if grid.state == GridState::Alive {
+                        grid.state = GridState::Dead;
+                    }
+                }
+                for player in somes_mut(&mut self.players) {
+                    player.alive = false;
+                    player.lives = PLAYER.max_lives;
+                }
             }
+        }
+
+        match self.menu_phase {
+            MenuPhase::InMenu => (),
+            MenuPhase::DropMenu => {
+                if self
+                    .grids
+                    .iter()
+                    .all(|x| x.state == GridState::Alive && x.vel.y == 0.0)
+                {
+                    self.menu_phase = MenuPhase::InGame;
+                }
+            }
+            MenuPhase::InGame => (),
         }
 
         for i in 0..self.grids.len() {
@@ -222,7 +255,7 @@ impl ggez::event::EventHandler for MainState {
                 player.fixed_update(&self.grids);
 
                 // If the player is dead attempt to respawn them
-                if !player.alive {
+                if !player.alive && self.menu_phase != MenuPhase::DropMenu {
                     let mut indicies: Vec<_> = (0..self.grids.len()).collect();
                     rand::thread_rng().shuffle(&mut indicies);
                     for i in indicies {

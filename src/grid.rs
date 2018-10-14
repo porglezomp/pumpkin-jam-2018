@@ -4,7 +4,7 @@ use std::{
 };
 
 use ggez::{
-    graphics::{Color, DrawParam, Point2, Vector2},
+    graphics::{DrawParam, Point2, Vector2},
     Context, GameResult,
 };
 use rand;
