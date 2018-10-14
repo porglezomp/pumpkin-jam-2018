@@ -4,6 +4,7 @@ use ggez::{
 };
 
 use crate::draw;
+use crate::grid::{Grid, Tile};
 use crate::images::Images;
 use crate::player::{Player, Team};
 
@@ -37,17 +38,53 @@ impl Bullet {
         }
     }
 
-    pub fn fixed_update<'a>(&mut self, players: impl Iterator<Item = &'a mut Player>) {
+    pub fn fixed_update<'a>(
+        &mut self,
+        grids: &mut [Grid],
+        players: &mut [Option<Player>],
+        in_menu: bool,
+    ) {
         self.pos += crate::DT * self.vel;
 
         if self.pos.x < -1.0 || self.pos.x > 33.0 {
             self.is_alive = false;
         }
 
-        for player in players {
-            if self.rect().overlaps(&player.rect()) && self.team != player.team {
-                player.damage();
-                self.is_alive = false;
+        for player in players.iter_mut() {
+            if let Some(player) = player {
+                if self.rect().overlaps(&player.rect()) && self.team != player.team {
+                    player.damage();
+                    self.is_alive = false;
+                }
+            }
+        }
+
+        for grid in grids {
+            let mut tiles = Vec::new();
+            grid.overlapping_tiles(self.rect(), &mut tiles);
+            for (tile, x, y) in tiles {
+                match tile {
+                    Tile::Solid(_) => {
+                        grid.damage_tile(x, y);
+                        grid.damage_tile(x, y);
+                        self.is_alive = false;
+                    }
+                    Tile::Start => {
+                        if let Some(player) = &mut players[self.team.0 as usize] {
+                            if in_menu {
+                                player.ready = !player.ready;
+                            }
+                        }
+                        self.is_alive = false;
+                    }
+                    Tile::Leave => {
+                        if in_menu {
+                            players[self.team.0 as usize] = None;
+                        }
+                        self.is_alive = false;
+                    }
+                    _ => (),
+                }
             }
         }
     }

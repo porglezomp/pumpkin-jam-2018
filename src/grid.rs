@@ -4,7 +4,7 @@ use std::{
 };
 
 use ggez::{
-    graphics::{Color, DrawParam, Point2, Rect, Vector2},
+    graphics::{Color, DrawParam, Point2, Vector2},
     Context, GameResult,
 };
 use rand;
@@ -21,7 +21,7 @@ pub type GridCoord = usize;
 pub const GRID_WIDTH: GridCoord = 32;
 pub const GRID_HEIGHT: GridCoord = 8;
 pub const TILE_SIZE: WorldCoord = 1.0f32;
-pub const TILE_MAX_HEALTH: u8 = 5;
+pub const TILE_MAX_HEALTH: u8 = 4;
 const GRID_TO_WORLD: f32 = TILE_SIZE as f32 * draw::WORLD_WIDTH / GRID_WIDTH as f32;
 
 pub const GRID_FALLING_ACCEL: f32 = -25.0;
@@ -96,25 +96,39 @@ impl Grid {
 
     pub fn draw(&mut self, ctx: &mut Context, images: &Images) -> GameResult<()> {
         use self::Tile::*;
-        let mut batch = Batch::new(images.leaves.clone());
+        let mut batch = Batch::atlas(images.tiles.clone(), 16, 16);
         for (j, row) in self.module.iter().enumerate() {
             for (i, tile) in row.iter().enumerate() {
+                let dest = Point2::new(TILE_SIZE * i as f32, TILE_SIZE * j as f32);
                 match *tile {
                     Air => continue,
+                    Tile::Start => batch.add(
+                        0,
+                        DrawParam {
+                            dest,
+                            color: Some(Color::new(0.0, 1.0, 1.0, 1.0)),
+                            ..Default::default()
+                        },
+                    ),
+                    Tile::Leave => batch.add(
+                        0,
+                        DrawParam {
+                            dest,
+                            color: Some(Color::new(1.0, 0.0, 1.0, 1.0)),
+                            ..Default::default()
+                        },
+                    ),
                     Solid(health) => {
                         // Tile is dead, don't need to render
                         if health == 0 {
                             continue;
                         }
+
+                        let idx = (0 + (TILE_MAX_HEALTH - health)) as usize;
                         batch.add(
-                            0,
+                            idx,
                             DrawParam {
-                                dest: Point2::new(TILE_SIZE * i as f32, TILE_SIZE * j as f32),
-                                color: Some(color_lerp(
-                                    BROKEN,
-                                    HEALTHY,
-                                    (health - 1) as f32 / (TILE_MAX_HEALTH - 1) as f32,
-                                )),
+                                dest,
                                 ..Default::default()
                             },
                         );
@@ -144,7 +158,7 @@ impl Grid {
                     self.module[y][x] = Tile::Air;
                 }
             }
-            Air => return,
+            Leave | Start | Air => (),
         }
     }
 
@@ -202,7 +216,7 @@ impl Grid {
     pub fn to_world_collider(&self, tile: (Tile, usize, usize)) -> WorldRect {
         use self::Tile::*;
         match tile.0 {
-            Solid(_) => {
+            Start | Leave | Solid(_) => {
                 let tile_point = self.to_world_coords((tile.1, tile.2));
                 math::rect_from_point(tile_point, TILE_SIZE, TILE_SIZE)
             }
@@ -283,6 +297,8 @@ fn text_to_row(row: &str) -> Result<[Tile; GRID_WIDTH], String> {
     let mut tiles = [Tile::Air; GRID_WIDTH];
     for (i, character) in row.trim_right().chars().enumerate() {
         match character {
+            '!' => tiles[i] = Tile::Start,
+            '?' => tiles[i] = Tile::Leave,
             '#' => tiles[i] = Tile::Solid(TILE_MAX_HEALTH),
             ' ' => tiles[i] = Tile::Air,
             _ => {
@@ -300,6 +316,8 @@ fn text_to_row(row: &str) -> Result<[Tile; GRID_WIDTH], String> {
 pub enum Tile {
     Air,
     Solid(u8),
+    Start,
+    Leave,
 }
 
 pub const HEALTHY: Color = Color {
