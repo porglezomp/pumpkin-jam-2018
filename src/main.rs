@@ -1,3 +1,7 @@
+#[macro_use]
+extern crate serde_derive;
+extern crate serde;
+
 use std::path;
 
 use ggez::{
@@ -9,12 +13,14 @@ use ggez::{
 use rand::{thread_rng, Rng};
 
 use crate::bullet::Bullet;
+use crate::config::{PLAYER, TEAM};
 use crate::grid::{Grid, GridState, Module};
 use crate::images::Images;
 use crate::player::{Axis, Button, Controls, Player, Team};
 
 mod bullet;
 mod collide;
+mod config;
 mod draw;
 mod grid;
 mod images;
@@ -78,6 +84,7 @@ impl MainState {
         ];
 
         let images = images::Images::new(ctx)?;
+        config::load(ctx)?;
 
         Ok(MainState {
             focused: true,
@@ -321,21 +328,16 @@ impl ggez::event::EventHandler for MainState {
         let mut hearts = draw::Batch::atlas(self.images.heart.clone(), 2, 1);
         let mut ready = draw::Batch::atlas(self.images.ready.clone(), 1, 1);
         let a = if time % 1.5 < 0.8 { 1.0 } else { 0.25 };
-        for ((player, info), &color) in self
-            .players
-            .iter()
-            .zip(&menu_info)
-            .zip(&player::TEAM_COLORS)
-        {
+        for ((player, info), &color) in self.players.iter().zip(&menu_info).zip(&TEAM.colors) {
             if let Some(player) = player {
-                for heart in 0..player::PLAYER_MAX_HEALTH {
+                for heart in 0..PLAYER.max_health {
                     let sprite = if player.health > heart { 0 } else { 1 };
                     let offset = heart as f32 * Vector2::new(0.7, 0.0);
                     hearts.add(
                         sprite,
                         DrawParam {
                             dest: info.heart_pos + offset,
-                            color: Some(color),
+                            color: Some(color.into()),
                             ..Default::default()
                         },
                     );
@@ -344,7 +346,7 @@ impl ggez::event::EventHandler for MainState {
                             0,
                             DrawParam {
                                 dest: info.ready_pos,
-                                color: Some(color),
+                                color: Some(color.into()),
                                 ..Default::default()
                             },
                         );
@@ -357,7 +359,7 @@ impl ggez::event::EventHandler for MainState {
                         &self.images.join,
                         DrawParam {
                             dest: info.join_pos,
-                            color: Some(Color { a, ..color }),
+                            color: Some(Color { a, ..color.into() }),
                             ..Default::default()
                         },
                     )?;
@@ -422,6 +424,9 @@ impl ggez::event::EventHandler for MainState {
     fn focus_event(&mut self, ctx: &mut Context, gained: bool) {
         self.focused = gained;
         if gained {
+            if let Err(err) = config::load(ctx) {
+                println!("Config error: {}", err);
+            }
             match Images::new(ctx) {
                 Ok(images) => self.images = images,
                 Err(err) => println!("Error reloading images: {}", err),

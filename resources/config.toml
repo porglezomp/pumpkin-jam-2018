@@ -1,0 +1,15 @@
+[team]
+colors = [
+  [0.25, 0.7, 1.0, 1.0],
+  [0.8, 0.2, 0.2, 1.0],
+  [0.3, 1.0, 0.5, 1.0],
+  [1.0, 0.9, 0.2, 1.0],
+]
+
+[player]
+max_health = 3
+height = 0.8
+width = 0.8
+shoot_offset_x = 0.5
+shoot_offset_y = 0.5
+jump_power = 16.0

@@ -5,45 +5,12 @@ use ggez::{
 };
 
 use crate::bullet::Bullet;
-
 use crate::collide;
+use crate::config::PLAYER;
 use crate::draw;
 use crate::grid;
 use crate::images::Images;
 use crate::math;
-
-pub const PLAYER_MAX_HEALTH: u8 = 3;
-pub const PLAYER_HEIGHT: f32 = 0.8;
-pub const PLAYER_WIDTH: f32 = 0.8;
-pub const SHOOT_OFFSET_X: f32 = PLAYER_WIDTH / 1.5;
-pub const SHOOT_OFFSET_Y: f32 = PLAYER_HEIGHT / 1.5;
-pub const JUMP_POWER: f32 = 16.0;
-pub const TEAM_COLORS: [Color; 4] = [
-    Color {
-        r: 0.25,
-        g: 0.7,
-        b: 1.0,
-        a: 1.0,
-    },
-    Color {
-        r: 0.8,
-        g: 0.2,
-        b: 0.2,
-        a: 1.0,
-    },
-    Color {
-        r: 0.3,
-        g: 1.0,
-        b: 0.5,
-        a: 1.0,
-    },
-    Color {
-        r: 1.0,
-        g: 0.9,
-        b: 0.25,
-        a: 1.0,
-    },
-];
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct Team(pub u8);
@@ -101,7 +68,7 @@ impl Player {
             pos: Point2::new(0.0, 0.0),
             vel: Vector2::new(0.0, 0.0),
             acc: Vector2::new(0.0, 0.0),
-            health: PLAYER_MAX_HEALTH,
+            health: PLAYER.max_health,
             cooldown: 0.0,
             alive: false,
             grounded: false,
@@ -134,7 +101,7 @@ impl Player {
         self.vel = Vector2::new(0.0, 0.0);
         self.acc = Vector2::new(0.0, 0.0);
         self.alive = true;
-        self.health = PLAYER_MAX_HEALTH;
+        self.health = PLAYER.max_health;
         true
     }
 
@@ -146,15 +113,16 @@ impl Player {
         self.controls();
 
         if self.grounded && self.control_state.jump {
-            self.acc.y = JUMP_POWER / crate::DT;
+            self.acc.y = PLAYER.jump_power / crate::DT;
             self.grounded = false;
         }
 
         if self.control_state.shoot && self.cooldown <= 0.0 {
             bullets.push(Bullet::new(
-                self.pos
-                    + Vector2::new(PLAYER_WIDTH / 2.0, 0.0)
-                    + Vector2::new(self.control_state.facing * SHOOT_OFFSET_X, SHOOT_OFFSET_Y),
+                self.pos + Vector2::new(PLAYER.width / 2.0, 0.0) + Vector2::new(
+                    self.control_state.facing * PLAYER.shoot_offset_x,
+                    PLAYER.shoot_offset_y,
+                ),
                 Vector2::new(self.control_state.facing * 30.0, 0.0),
                 self.team,
             ));
@@ -187,7 +155,7 @@ impl Player {
         // Resolve Vertically
         next_pos.y += self.vel.y * crate::DT;
 
-        let next_rect = math::rect_from_point(next_pos, PLAYER_WIDTH, PLAYER_HEIGHT);
+        let next_rect = math::rect_from_point(next_pos, PLAYER.width, PLAYER.height);
         collide::get_overlapping_tiles(grids, next_rect, &mut colliders);
         let (res_disp_y, res_vel_y) =
             collide::resolve_colliders_vert(next_rect, self.vel, &colliders);
@@ -200,7 +168,7 @@ impl Player {
         // Resolve Horizontally
         next_pos.x += crate::DT * self.vel.x;
 
-        let next_rect = math::rect_from_point(next_pos, PLAYER_WIDTH, PLAYER_HEIGHT);
+        let next_rect = math::rect_from_point(next_pos, PLAYER.width, PLAYER.height);
         colliders.clear();
         collide::get_overlapping_tiles(grids, next_rect, &mut colliders);
         let (res_disp_x, res_vel_x) =
@@ -211,10 +179,10 @@ impl Player {
         self.pos = next_pos;
 
         // Don't let the player escape!
-        if self.pos.y + PLAYER_HEIGHT > draw::WORLD_HEIGHT {
-            self.pos.y = draw::WORLD_HEIGHT - PLAYER_HEIGHT;
+        if self.pos.y + PLAYER.height > draw::WORLD_HEIGHT {
+            self.pos.y = draw::WORLD_HEIGHT - PLAYER.height;
         }
-        self.pos.x = math::clamp(0.0, draw::WORLD_WIDTH - PLAYER_WIDTH, self.pos.x);
+        self.pos.x = math::clamp(0.0, draw::WORLD_WIDTH - PLAYER.width, self.pos.x);
         // Gravity
         self.acc = Vector2::new(0.0, -20.0);
     }
@@ -243,8 +211,8 @@ impl Player {
         Rect {
             x: self.pos.x - 0.5,
             y: self.pos.y,
-            w: PLAYER_WIDTH,
-            h: PLAYER_HEIGHT,
+            w: PLAYER.width,
+            h: PLAYER.height,
         }
     }
 }
