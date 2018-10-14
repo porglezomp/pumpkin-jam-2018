@@ -14,6 +14,7 @@ width = 0.8
 shoot_offset_x = 0.5
 shoot_offset_y = 0.5
 jump_power = 16.0
+second_jump_power = 16.0
 
 [grid]
 tile_max_health = 4

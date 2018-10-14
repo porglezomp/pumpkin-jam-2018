@@ -82,6 +82,8 @@ config! {
         shoot_offset_x: f32 = 0.8 / 1.5,
         shoot_offset_y: f32 = 0.8 / 1.5,
         jump_power: f32 = 16.0,
+        second_jump_power: f32 = 16.0,
+
     };
 
     config GRID: grid = Grid {

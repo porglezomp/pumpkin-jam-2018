@@ -14,9 +14,6 @@ use crate::grid;
 use crate::images::Images;
 use crate::math;
 
-pub const JUMP_POWER: f32 = 16.0;
-pub const SECOND_JUMP_POWER: f32 = 16.0;
-
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct Team(pub u8);
 
@@ -136,13 +133,13 @@ impl Player {
         if !self.control_state.last_jump_frame && self.control_state.this_jump_frame {
             self.jump = match self.jump {
                 Double => {
-                    self.acc.y = JUMP_POWER / crate::DT;
+                    self.acc.y = PLAYER.jump_power / crate::DT;
                     self.grounded = false;
                     sounds.play_sound(ctx, SoundEffect::Jump);
                     Single
                 }
                 Single => {
-                    self.acc.y = SECOND_JUMP_POWER / crate::DT;
+                    self.acc.y = PLAYER.second_jump_power / crate::DT;
                     self.grounded = false;
                     sounds.play_sound(ctx, SoundEffect::SecondJump);
                     None
