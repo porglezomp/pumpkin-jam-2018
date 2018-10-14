@@ -67,6 +67,7 @@ pub struct ControlState {
     pub shoot: bool,
     pub l_pressed: bool,
     pub r_pressed: bool,
+    pub facing: f32,
 }
 
 #[derive(Debug)]
@@ -138,20 +139,11 @@ impl Player {
         }
 
         if self.control_state.shoot && self.cooldown <= 0.0 {
-            let bullet = if self.control_state.lr > 0.0 {
-                Bullet::new(
-                    self.pos + Vector2::new(0.6, 1.0),
-                    Vector2::new(30.0, 0.0),
-                    self.team,
-                )
-            } else {
-                Bullet::new(
-                    self.pos + Vector2::new(-0.6, 1.0),
-                    Vector2::new(-30.0, 0.0),
-                    self.team,
-                )
-            };
-            bullets.push(bullet);
+            bullets.push(Bullet::new(
+                self.pos + Vector2::new(self.control_state.facing * 0.6, 1.0),
+                Vector2::new(self.control_state.facing * 30.0, 0.0),
+                self.team,
+            ));
             self.cooldown = 0.3;
         }
 

@@ -104,10 +104,20 @@ impl MainState {
             }
             if let Axis::Buttons(ref l, ref r) = player.controls.lr {
                 if btn == *l {
+                    if pressed {
+                        player.control_state.facing = -1.0;
+                    } else if player.control_state.r_pressed {
+                        player.control_state.facing = 1.0;
+                    }
                     player.control_state.l_pressed = pressed;
                     found = true;
                 }
                 if btn == *r {
+                    if pressed {
+                        player.control_state.facing = 1.0;
+                    } else if player.control_state.l_pressed {
+                        player.control_state.facing = -1.0;
+                    }
                     player.control_state.r_pressed = pressed;
                     found = true;
                 }
@@ -141,6 +151,9 @@ impl MainState {
         let axis = Axis::Analog(id, axis);
         for player in somes_mut(&mut self.players) {
             if axis == player.controls.lr {
+                if value.abs() > 0.1 {
+                    player.control_state.facing = value.signum();
+                }
                 player.control_state.lr = value;
             }
         }
