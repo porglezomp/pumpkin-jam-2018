@@ -11,7 +11,8 @@ use crate::grid;
 use crate::images::Images;
 
 pub const PLAYER_MAX_HEALTH: u8 = 3;
-pub const CHAR_HEIGHT: f32 = 1.8;
+pub const CHAR_HEIGHT: f32 = 0.8;
+pub const JUMP_POWER: f32 = 16.0;
 pub const TEAM_COLORS: [Color; 4] = [
     Color {
         r: 0.25,
@@ -82,6 +83,7 @@ pub struct Player {
     pub health: u8,
     pub cooldown: f32,
     pub alive: bool,
+    pub grounded: bool,
 }
 
 impl Player {
@@ -96,6 +98,7 @@ impl Player {
             health: PLAYER_MAX_HEALTH,
             cooldown: 0.0,
             alive: false,
+            grounded: false,
         }
     }
 
@@ -135,11 +138,9 @@ impl Player {
 
         self.controls();
 
-        let grounded = true;
-        // let grounded = self.pos.y <= 0.0;
-
-        if grounded && self.control_state.jump {
-            self.acc.y = 0.1 / crate::DT;
+        if self.grounded && self.control_state.jump {
+            self.acc.y = JUMP_POWER / crate::DT;
+            self.grounded = false;
         }
 
         if self.control_state.shoot && self.cooldown <= 0.0 {
@@ -191,6 +192,9 @@ impl Player {
             let (res_disp, res_vel) = grid::collision_resolve_vert(next_rect, self.vel, collider);
             next_pos.y += res_disp;
             self.vel = res_vel;
+            // If the displacement was vertical that means we have been pushed up
+            // out of the ground, which means we are probably grounded.
+            self.grounded = self.grounded || res_disp > 0.0;
         }
 
         next_pos.x += crate::DT * self.vel.x;

@@ -184,6 +184,7 @@ impl ggez::event::EventHandler for MainState {
             for player in somes_mut(&mut self.players) {
                 player.fixed_update(&self.grids);
 
+                // If the player is dead attempt to respawn them
                 if !player.alive {
                     let mut indicies: Vec<_> = (0..self.grids.len()).collect();
                     rand::thread_rng().shuffle(&mut indicies);
